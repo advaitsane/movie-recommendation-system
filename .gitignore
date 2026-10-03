@@ -1,0 +1,9 @@
+.env
+target/
+*.log
+application-local.yml
+application-local.properties
+.DS_Store
+services/.cache/
+.idea/
+

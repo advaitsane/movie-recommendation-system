@@ -1,0 +1,55 @@
+services:
+  # ---------- Data stores ----------
+  mongo:
+    image: mongo:7
+    # No host port published: this container is only reached by recommendation-service via
+    # the compose network's `mongo:27017` DNS name. Publishing 27017 here would conflict with
+    # the separately-run mflix-mongo container, which also binds host port 27017 for
+    # catalog-service/search-service (see README "Local dev").
+    volumes: ["mongo-data:/data/db"]
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: mflix_reviews
+      POSTGRES_USER: mflix
+      POSTGRES_PASSWORD: mflix
+    ports: ["5432:5432"]
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      # Creates user-service's mflix_users database alongside POSTGRES_DB. Runs only when the
+      # data volume is empty; on an existing volume, `docker compose down -v` to re-run it.
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
+
+  redis:
+    image: redis:7
+    ports: ["6379:6379"]
+
+  # ---------- Messaging (KRaft mode, no Zookeeper needed) ----------
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      # PLAINTEXT is for other compose services (advertised as the `kafka` service DNS name);
+      # PLAINTEXT_HOST is for tools/services run directly on the host (e.g. `mvnw spring-boot:run`
+      # against a service not yet added to this compose file) via localhost:29092.
+      KAFKA_LISTENERS: PLAINTEXT://:9092,PLAINTEXT_HOST://:29092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      # Must be a base64-encoded 16-byte UUID for KRaft storage formatting, not an arbitrary string.
+      CLUSTER_ID: av6IvC-3RqSGcHd3kMx8Og
+      # Single-broker dev cluster: the default replication factor of 3 for these internal
+      # topics can never succeed with only 1 broker registered, which silently breaks every
+      # consumer group (no __consumer_offsets topic means no group coordinator).
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+    ports: ["9092:9092", "29092:29092"]
+
+volumes:
+  mongo-data:
+  postgres-data:

@@ -1,0 +1,104 @@
+{
+  "info": {
+    "name": "search-service",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8082" },
+    { "key": "movieId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Search - Text Query",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    const body = pm.response.json();",
+              "    if (Array.isArray(body.content) && body.content.length > 0) {",
+              "        pm.collectionVariables.set('movieId', body.content[0]._id);",
+              "    }",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/movies/search?q=matrix&page=0&size=20&sort=title,asc",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "movies", "search"],
+          "query": [
+            { "key": "q", "value": "matrix" },
+            { "key": "page", "value": "0" },
+            { "key": "size", "value": "20" },
+            { "key": "sort", "value": "title,asc" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Search - Filtered (genre/year/rating, no text)",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/movies/search?genre=Action&year=1999&minRating=7&page=0&size=20",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "movies", "search"],
+          "query": [
+            { "key": "genre", "value": "Action" },
+            { "key": "year", "value": "1999" },
+            { "key": "minRating", "value": "7" },
+            { "key": "page", "value": "0" },
+            { "key": "size", "value": "20" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Get Movie By Id",
+      "request": {
+        "method": "GET",
+        "url": { "raw": "{{baseUrl}}/api/movies/search/{{movieId}}", "host": ["{{baseUrl}}"], "path": ["api", "movies", "search", "{{movieId}}"] }
+      }
+    },
+    {
+      "name": "Vector Search (semantic)",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/movies/search/vector?q=a hacker discovers reality is a simulation&limit=10",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "movies", "search", "vector"],
+          "query": [
+            { "key": "q", "value": "a hacker discovers reality is a simulation" },
+            { "key": "limit", "value": "10" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Find Similar Movies",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/movies/search/{{movieId}}/similar?limit=10",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "movies", "search", "{{movieId}}", "similar"],
+          "query": [ { "key": "limit", "value": "10" } ]
+        }
+      }
+    },
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "url": { "raw": "{{baseUrl}}/actuator/health", "host": ["{{baseUrl}}"], "path": ["actuator", "health"] }
+      }
+    }
+  ]
+}

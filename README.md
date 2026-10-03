@@ -17,7 +17,7 @@ records (ADRs) behind it.
 |---|---|---|
 | 0 | Repo scaffolding, infrastructure in docker-compose | ✅ |
 | 1 | CI: build and test every service on each PR | ✅ |
-| 2 | catalog-service and search-service (CQRS read model over Kafka) | ⏳ |
+| 2 | catalog-service and search-service (CQRS read model over Kafka) | ✅ |
 | 3 | review-service (Postgres, outbox pattern) | ⏳ |
 | 4 | recommendation-service (content + collaborative blend, Redis cache) | ⏳ |
 | 5 | user-service (registration, JWT issuance, activity events) | ⏳ |
@@ -112,7 +112,7 @@ Maven wrapper).
 recommendation-service):
 
 ```bash
-docker compose up -d
+docker compose up -d mongo postgres redis kafka
 ```
 
 **2. The movie catalog database.** catalog-service and search-service use a separate
@@ -126,6 +126,20 @@ curl -sSf https://atlas-education.s3.amazonaws.com/sampledata.archive \
 ```
 
 It lives outside compose, so after a restart it needs `docker start mflix-mongo`.
+
+**3. The services.** With mflix-mongo running, build and start every service published so far:
+
+```bash
+docker compose up -d --build
+```
+
+On its first start, search-service copies the catalog (about 20,000 movies) into its own index.
+Each service's README covers its endpoints, configuration and tests, and ships a Postman
+collection:
+
+- [catalog-service](services/catalog-service/README.md) (:8081)
+- [search-service](services/search-service/README.md) (:8082). Vector search needs an
+  embedding-provider key; without one those two endpoints return 503 and everything else works.
 
 All credentials in `docker-compose.yml` are local-development placeholders. Real secrets (such as
 an embedding-provider API key) go in a gitignored `application-local.yml`; see each service's

@@ -1,0 +1,81 @@
+{
+  "info": {
+    "name": "catalog-service",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8081" },
+    { "key": "movieId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Create Movie",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 201) {",
+              "    const body = pm.response.json();",
+              "    pm.collectionVariables.set('movieId', body._id);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Content-Type", "value": "application/json" } ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"The Matrix\",\n  \"year\": 1999,\n  \"plot\": \"A computer hacker learns about the true nature of reality.\",\n  \"genres\": [\"Action\", \"Sci-Fi\"],\n  \"directors\": [\"Lana Wachowski\", \"Lilly Wachowski\"],\n  \"cast\": [\"Keanu Reeves\", \"Laurence Fishburne\"],\n  \"countries\": [\"USA\"],\n  \"languages\": [\"English\"],\n  \"rated\": \"R\",\n  \"runtime\": 136,\n  \"poster\": \"https://example.com/matrix.jpg\"\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/movies", "host": ["{{baseUrl}}"], "path": ["api", "movies"] }
+      }
+    },
+    {
+      "name": "Get All Movies",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/movies?limit=20&skip=0&sortBy=title&sortOrder=asc",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "movies"],
+          "query": [
+            { "key": "limit", "value": "20" },
+            { "key": "skip", "value": "0" },
+            { "key": "sortBy", "value": "title" },
+            { "key": "sortOrder", "value": "asc" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Get Movie By Id",
+      "request": {
+        "method": "GET",
+        "url": { "raw": "{{baseUrl}}/api/movies/{{movieId}}", "host": ["{{baseUrl}}"], "path": ["api", "movies", "{{movieId}}"] }
+      }
+    },
+    {
+      "name": "Update Movie",
+      "request": {
+        "method": "PATCH",
+        "header": [ { "key": "Content-Type", "value": "application/json" } ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"plot\": \"Updated plot text.\",\n  \"runtime\": 140\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/movies/{{movieId}}", "host": ["{{baseUrl}}"], "path": ["api", "movies", "{{movieId}}"] }
+      }
+    },
+    {
+      "name": "Delete Movie By Id",
+      "request": {
+        "method": "DELETE",
+        "url": { "raw": "{{baseUrl}}/api/movies/{{movieId}}", "host": ["{{baseUrl}}"], "path": ["api", "movies", "{{movieId}}"] }
+      }
+    }
+  ]
+}

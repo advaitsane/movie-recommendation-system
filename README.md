@@ -1,5 +1,7 @@
 # movie-recommendation-system
 
+[![CI](https://github.com/advaitsane/movie-recommendation-system/actions/workflows/ci.yml/badge.svg)](https://github.com/advaitsane/movie-recommendation-system/actions/workflows/ci.yml)
+
 The MongoDB `sample-app-java-mflix` monolith, rebuilt as a set of services that each own one
 domain. The goal is to study reliability and scalability engineering on a realistic system: CQRS
 read models, the outbox pattern, circuit breakers and graceful degradation, each one checked with
@@ -13,8 +15,8 @@ records (ADRs) behind it.
 
 | Step | Contents | Status |
 |---|---|---|
-| 0 | Repo scaffolding, infrastructure in docker-compose | ✅ this commit |
-| 1 | CI: build and test every service on each PR | ⏳ |
+| 0 | Repo scaffolding, infrastructure in docker-compose | ✅ |
+| 1 | CI: build and test every service on each PR | ✅ |
 | 2 | catalog-service and search-service (CQRS read model over Kafka) | ⏳ |
 | 3 | review-service (Postgres, outbox pattern) | ⏳ |
 | 4 | recommendation-service (content + collaborative blend, Redis cache) | ⏳ |

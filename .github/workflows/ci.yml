@@ -1,0 +1,93 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  changes:
+    name: Detect changed services
+    runs-on: ubuntu-latest
+    outputs:
+      services: ${{ steps.detect.outputs.services }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: detect
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          # A service is any directory under services/ with its own Maven wrapper. Each one is an
+          # independent Maven project, so each gets its own job.
+          all=$(find services -mindepth 2 -maxdepth 2 -name mvnw 2>/dev/null \
+            | awk -F/ '{print $2}' | sort || true)
+
+          # Build only the services a change touches. Build all of them when the diff can't be
+          # computed (first push of a branch) or when this workflow itself changed.
+          if ! changed=$(git diff --name-only "$BASE_SHA" HEAD 2>/dev/null) \
+              || grep -q '^\.github/workflows/' <<<"$changed"; then
+            selected=$all
+          else
+            selected=$(for s in $all; do grep -q "^services/$s/" <<<"$changed" && echo "$s" || true; done)
+          fi
+
+          json=$(printf '%s\n' "$selected" | jq -Rnc '[inputs | select(length > 0)]')
+          echo "Services to build: $json"
+          echo "services=$json" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: ${{ matrix.service }}
+    needs: changes
+    if: needs.changes.outputs.services != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJSON(needs.changes.outputs.services) }}
+    defaults:
+      run:
+        working-directory: services/${{ matrix.service }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+          cache-dependency-path: services/${{ matrix.service }}/pom.xml
+      # Unit tests plus integration tests against real Mongo/Postgres via Testcontainers, which
+      # uses the Docker engine preinstalled on ubuntu runners.
+      - name: Build and test
+        run: ./mvnw -B -ntp verify
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-reports-${{ matrix.service }}
+          path: services/${{ matrix.service }}/target/surefire-reports/
+          retention-days: 7
+
+  # One stable check name for branch protection, whichever services the matrix ran (if any).
+  ci-result:
+    name: CI result
+    needs: [changes, build]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail if detection or any build failed
+        env:
+          CHANGES: ${{ needs.changes.result }}
+          BUILD: ${{ needs.build.result }}
+        run: |
+          echo "changes=$CHANGES build=$BUILD"
+          [[ "$CHANGES" == success && "$BUILD" != failure && "$BUILD" != cancelled ]]

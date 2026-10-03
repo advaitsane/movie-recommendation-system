@@ -50,6 +50,39 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
     ports: ["9092:9092", "29092:29092"]
 
+  # ---------- Domain services ----------
+  catalog-service:
+    build: ./services/catalog-service
+    ports: ["8081:8081"]
+    environment:
+      # Points at the mongodb-atlas-local container run separately on the host
+      # (already seeded with sample_mflix), not the generic `mongo` service above.
+      # host.docker.internal lets the container reach the host's published port.
+      MONGODB_URI: mongodb://host.docker.internal:27017/sample_mflix?directConnection=true
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      # No trace collector runs yet; exporting would log an error per batch. The observability
+      # step adds Jaeger and replaces this with its endpoint.
+      MANAGEMENT_TRACING_EXPORT_ENABLED: "false"
+    depends_on: [kafka]
+
+  search-service:
+    build: ./services/search-service
+    ports: ["8082:8082"]
+    environment:
+      # Same mongodb-atlas-local container on the host as catalog-service (see its
+      # comment above), just a different database — not the generic `mongo` service.
+      MONGODB_URI: mongodb://host.docker.internal:27017/sample_mflix_search?directConnection=true
+      # Activates application-local.yml (gitignored) for per-developer overrides — e.g. a real
+      # embedding-provider API key — layered on top of application.yml. Harmless if that file
+      # doesn't exist (nothing to clone contains one): Spring just finds no profile-specific
+      # file and falls back to application.yml's defaults, same as before.
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-local}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      # Docker network service name, not localhost:8081 (which only resolves to the container itself).
+      CATALOG_SERVICE_URL: http://catalog-service:8081
+      MANAGEMENT_TRACING_EXPORT_ENABLED: "false"
+    depends_on: [kafka]
+
 volumes:
   mongo-data:
   postgres-data:

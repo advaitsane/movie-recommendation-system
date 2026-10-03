@@ -1,0 +1,144 @@
+# MongoDB Configuration
+# search-service owns its OWN database (sample_mflix_search) — a synced CQRS read model,
+# never a passthrough to catalog-service's sample_mflix. See docs/adr/0001.
+spring:
+  mongodb:
+    uri: ${MONGODB_URI:mongodb://localhost:27017/sample_mflix_search}
+    database: sample_mflix_search
+  application:
+    name: search-service
+  jackson2:
+    default-property-inclusion: non_null
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: search-service
+  # Bounds every RestClient built from the auto-configured RestClient.Builder (catalogRestClient,
+  # openAiRestClient, voyageRestClient — see their *ClientConfig classes) — none of them set a
+  # per-client timeout, so without this a hung (not just erroring) embedding provider or
+  # catalog-service would block a request thread indefinitely. The embedding services' try/catch
+  # only fails soft against a thrown exception; it doesn't bound how long the call takes to throw
+  # one. read-timeout is generous since backfill sends batched (up to 100-text) embedding requests.
+  http:
+    client:
+      connect-timeout: 5s
+      read-timeout: 30s
+
+# Server Configuration
+server:
+  port: 8082
+
+# Observability: /actuator/prometheus is scraped by the prometheus container; traces export via
+# OTLP/HTTP to the jaeger container. 100% sampling is a deliberate dev-only choice (this is a
+# low-traffic local deployment) — see docs/adr/0008.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus,info
+  tracing:
+    sampling:
+      probability: 1.0
+  # The property that actually gates the OTLP trace exporter's creation, confirmed via
+  # `--debug`'s condition-evaluation report — NOT management.otlp.tracing.endpoint, which looks
+  # equally plausible (it binds a real OtlpTracingProperties class) but silently has no effect:
+  # OtlpTracingConfigurations.ConnectionDetails only activates on this exact property. See
+  # docs/adr/0008 — this is the one thing decompiling the properties class alone didn't catch.
+  opentelemetry:
+    tracing:
+      export:
+        otlp:
+          endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:http://localhost:4318/v1/traces}
+  otlp:
+    # spring-boot-starter-opentelemetry also auto-enables an OTLP metrics push exporter by
+    # default; Jaeger only ingests OTLP traces (and logs), not metrics, so left on this silently
+    # fails every export interval. Metrics are Prometheus-scraped (pull), not OTLP-pushed here.
+    metrics:
+      export:
+        enabled: false
+
+# Kafka topic names — must match catalog-service's app.kafka.topics values, since these are
+# the topics catalog-service publishes movie.created/updated/deleted to.
+app:
+  kafka:
+    topics:
+      movie-created: movie.created
+      movie-updated: movie.updated
+      movie-deleted: movie.deleted
+
+# catalog-service's base URL, used once at startup to backfill movies_search when it's empty
+# (e.g. first boot, or after a `docker compose down -v`) rather than waiting for the full
+# Kafka history to replay.
+catalog:
+  service:
+    url: ${CATALOG_SERVICE_URL:http://localhost:8081}
+
+# Embeddings, used to populate movies_search.plotEmbedding (backfill + Kafka consumer) and to
+# embed free-text queries for GET /api/movies/search/vector. `provider` selects which of the two
+# config blocks below is actually used (EmbeddingService is an interface; exactly one of
+# VoyageEmbeddingService/OpenAiEmbeddingService is registered, via @ConditionalOnProperty on
+# this same property) — only that provider's API key needs to be set. If it isn't, the active
+# service disables itself: movies index without embeddings and the vector-search endpoints
+# return 503, but text/genre/year/rating search keeps working unaffected.
+#
+# Each provider's embedding-dimensions must match its configured model's actual output size,
+# since VectorSearchIndexVerification reads it from the active EmbeddingService bean to build
+# the Atlas index. NOTE: the api.key lines below are meant to be edited locally with a real key
+# for local dev — this file has no secrets in it as checked in (both keys default to blank via
+# the ${...} env var placeholder), but if you type a literal key in place of a placeholder,
+# remember this file is version-controlled: don't commit that change, or switch back to the
+# ${VOYAGE_API_KEY:}/${OPENAI_API_KEY:} placeholder and set the env var instead before committing.
+embedding:
+  provider: ${EMBEDDING_PROVIDER:openai}
+
+# voyage-3.5's default output is 1024 dimensions.
+voyage:
+  api:
+    base-url: ${VOYAGE_API_BASE_URL:https://api.voyageai.com}
+    key: ${VOYAGE_API_KEY:}
+  model: ${VOYAGE_MODEL:voyage-3.5}
+  embedding-dimensions: ${VOYAGE_EMBEDDING_DIMENSIONS:1024}
+
+# text-embedding-3-small's native output is 1536 dimensions; text-embedding-3-large is 3072.
+# Both support OpenAI's `dimensions` request param to shorten that output (sent as
+# embedding-dimensions below) — the older text-embedding-ada-002 does NOT support that param,
+# so it isn't usable here without code changes.
+openai:
+  api:
+    base-url: ${OPENAI_API_BASE_URL:https://api.openai.com}
+    key: ${OPENAI_API_KEY:}
+  model: ${OPENAI_MODEL:text-embedding-3-small}
+  embedding-dimensions: ${OPENAI_EMBEDDING_DIMENSIONS:1536}
+
+# Atlas Vector Search index name (created on startup by VectorSearchIndexVerification) that
+# GET /api/movies/search/vector and GET /api/movies/search/{id}/similar query against.
+search:
+  vector:
+    index-name: ${VECTOR_INDEX_NAME:movie_vector_index}
+
+# Logging Configuration
+logging:
+  level:
+    com.movies.search: ${LOG_LEVEL:INFO}
+    org.mongodb.driver: WARN
+    org.mongodb.driver.connection: ERROR
+  pattern:
+    console: "%clr(%d{HH:mm:ss}){faint} %clr(%5p){highlight} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %m%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} %5p --- [%15.15t] %-40.40logger{39} : %m%n"
+  logback:
+    rollingpolicy:
+      max-file-size: 5MB
+      max-history: 5
+
+# API Documentation (Swagger/OpenAPI)
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method
+    tryItOutEnabled: false
+    displayRequestDuration: true
+    deepLinking: true
+    defaultModelsExpandDepth: 1
+    defaultModelExpandDepth: 1

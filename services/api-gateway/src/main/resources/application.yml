@@ -1,0 +1,144 @@
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    # Spring Cloud 2025.1.0's own compatibility-verifier hardcodes "Boot 4.0.x" as the only
+    # compatible line and rejects this repo's pinned 4.1.1 on startup, even though everything
+    # here builds and runs correctly against it (same "trust the actual toolchain, not a
+    # version-guard list" situation as review-service's Flyway/Testcontainers gotchas).
+    compatibility-verifier:
+      enabled: false
+    gateway:
+      server:
+        webflux:
+          routes:
+            # More specific search paths must be listed before the catch-all catalog route below
+            # — Spring Cloud Gateway matches routes in list order, first match wins.
+            - id: search-service
+              uri: ${SEARCH_SERVICE_URL:http://localhost:8082}
+              predicates:
+                - Path=/api/movies/search/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: searchServiceCB
+                    fallbackUri: forward:/fallback/search
+
+            - id: catalog-service
+              uri: ${CATALOG_SERVICE_URL:http://localhost:8081}
+              predicates:
+                - Path=/api/movies/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: catalogServiceCB
+                    fallbackUri: forward:/fallback/catalog
+
+            - id: review-service
+              uri: ${REVIEW_SERVICE_URL:http://localhost:8083}
+              predicates:
+                - Path=/api/reviews/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: reviewServiceCB
+                    fallbackUri: forward:/fallback/reviews
+
+            - id: recommendation-service
+              uri: ${RECOMMENDATION_SERVICE_URL:http://localhost:8084}
+              predicates:
+                - Path=/api/recommendations/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: recommendationServiceCB
+                    fallbackUri: forward:/fallback/recommendations
+
+            - id: user-service
+              uri: ${USER_SERVICE_URL:http://localhost:8085}
+              predicates:
+                - Path=/api/users/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: userServiceCB
+                    fallbackUri: forward:/fallback/users
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-size: 10
+        # Without this, resilience4j's library default (100) applies — unreachable by a
+        # count-based window of size 10, so the breaker could never open. Verified live: killing
+        # catalog-service left every request paying the full TimeLimiter timeout with the breaker
+        # stuck CLOSED (see ADR-0011 Update 4) until this was set.
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+  timelimiter:
+    configs:
+      default:
+        timeout-duration: 4s
+    instances:
+      # recommendation-service's own call to search-service already degrades gracefully on
+      # timeout (falls back to collaborative/popularity signals — see ADR-0005), but its worst-
+      # case internal budget (connect-timeout-ms 2000 + read-timeout-ms 3000, see
+      # SearchClientConfig) is 5s — longer than the gateway's global 4s default. Under load the
+      # gateway was aborting (503) before that fallback could return a normal 200. See ADR-0010.
+      recommendationServiceCB:
+        base-config: default
+        timeout-duration: 6s
+
+# Same secret user-service signs tokens with — see ADR-0007. Deliberately no default: it must come
+# from JWT_SECRET (docker-compose sets one dev value for both services, so they always agree) or
+# jwt.secret in a gitignored application-local.yml. GatewayJwtProperties fails startup if it's
+# missing or shorter than the 32 bytes HS256 needs.
+jwt:
+  secret: ${JWT_SECRET:}
+
+# Single shared token bucket across the whole gateway — not per-route/per-client. See ADR-0007
+# for why finer-grained (and Redis-backed, for multi-instance) rate limiting is deferred.
+gateway:
+  rate-limit:
+    limit-for-period: 50
+    limit-refresh-period-ms: 1000
+
+server:
+  port: 8080
+
+# Observability: /actuator/prometheus is scraped by the prometheus container; traces export via
+# OTLP/HTTP to the jaeger container, so a trace started here continues through whichever
+# downstream service the route proxies to. 100% sampling is a deliberate dev-only choice (this
+# is a low-traffic local deployment) — see docs/adr/0008.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus,info
+  tracing:
+    sampling:
+      probability: 1.0
+  # The property that actually gates the OTLP trace exporter's creation, confirmed via
+  # `--debug`'s condition-evaluation report — NOT management.otlp.tracing.endpoint, which looks
+  # equally plausible (it binds a real OtlpTracingProperties class) but silently has no effect:
+  # OtlpTracingConfigurations.ConnectionDetails only activates on this exact property. See
+  # docs/adr/0008 — this is the one thing decompiling the properties class alone didn't catch.
+  opentelemetry:
+    tracing:
+      export:
+        otlp:
+          endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:http://localhost:4318/v1/traces}
+  otlp:
+    # spring-boot-starter-opentelemetry also auto-enables an OTLP metrics push exporter by
+    # default; Jaeger only ingests OTLP traces (and logs), not metrics, so left on this silently
+    # fails every export interval. Metrics are Prometheus-scraped (pull), not OTLP-pushed here.
+    metrics:
+      export:
+        enabled: false
+
+logging:
+  level:
+    com.movies.gateway: DEBUG
+    org.springframework.cloud.gateway: INFO

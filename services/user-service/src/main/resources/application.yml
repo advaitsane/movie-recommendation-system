@@ -1,0 +1,110 @@
+# Postgres Configuration
+# POSTGRES_URL is provided by docker-compose; defaults below target a locally-run Postgres with
+# this repo's docker-compose credentials (mflix/mflix).
+spring:
+  application:
+    name: user-service
+  datasource:
+    url: ${POSTGRES_URL:jdbc:postgresql://localhost:5432/mflix_users}
+    username: ${POSTGRES_USER:mflix}
+    password: ${POSTGRES_PASSWORD:mflix}
+    hikari:
+      # HikariCP's own default (30s) applies to both a normal request AND Boot's own
+      # DataSourceHealthIndicator, which borrows a connection from this same pool to check it —
+      # so an exhausted pool made health checks just as slow as real requests. Verified live: a
+      # killed Postgres left /actuator/health taking a full 30s to report DOWN and a real request
+      # returning a raw 500 with Hikari's exception text in the body (see ADR-0011 Update 5) until
+      # this was set. postgresCircuitBreaker (see PostgresCircuitBreakerConfig) then fails fast on
+      # top of this once enough calls within even this shorter window still fail.
+      connection-timeout: 3000
+  jpa:
+    hibernate:
+      # Flyway owns the schema (db/migration); Hibernate only validates it matches at startup
+      # rather than being allowed to auto-alter anything.
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  jackson2:
+    default-property-inclusion: non_null
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+# Server Configuration
+server:
+  port: 8085
+
+# Observability: /actuator/prometheus is scraped by the prometheus container; traces export via
+# OTLP/HTTP to the jaeger container. 100% sampling is a deliberate dev-only choice (this is a
+# low-traffic local deployment) — see docs/adr/0008.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus,info
+  tracing:
+    sampling:
+      probability: 1.0
+  # The property that actually gates the OTLP trace exporter's creation, confirmed via
+  # `--debug`'s condition-evaluation report — NOT management.otlp.tracing.endpoint, which looks
+  # equally plausible (it binds a real OtlpTracingProperties class) but silently has no effect:
+  # OtlpTracingConfigurations.ConnectionDetails only activates on this exact property. See
+  # docs/adr/0008 — this is the one thing decompiling the properties class alone didn't catch.
+  opentelemetry:
+    tracing:
+      export:
+        otlp:
+          endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:http://localhost:4318/v1/traces}
+  otlp:
+    # spring-boot-starter-opentelemetry also auto-enables an OTLP metrics push exporter by
+    # default; Jaeger only ingests OTLP traces (and logs), not metrics, so left on this silently
+    # fails every export interval. Metrics are Prometheus-scraped (pull), not OTLP-pushed here.
+    metrics:
+      export:
+        enabled: false
+
+# CORS Configuration
+cors:
+  allowed:
+    origins: ${CORS_ORIGINS:http://localhost:3000}
+
+# Kafka topic name — externalized so it's one place to change (and so recommendation-service's
+# future consumer config, if it ever consumes this topic, can be kept in sync).
+app:
+  kafka:
+    topics:
+      user-activity: user.activity
+
+# JWT signing. Deliberately no default secret: it must come from JWT_SECRET (docker-compose sets
+# a dev value) or jwt.secret in a gitignored application-local.yml. JwtProperties fails startup if
+# it's missing or shorter than the 32 bytes HS256 needs. Must match api-gateway's secret exactly.
+jwt:
+  secret: ${JWT_SECRET:}
+  expiration: ${JWT_EXPIRATION:1h}
+
+# Logging Configuration
+logging:
+  level:
+    com.movies.user: ${LOG_LEVEL:INFO}
+    org.hibernate.SQL: WARN
+  pattern:
+    console: "%clr(%d{HH:mm:ss}){faint} %clr(%5p){highlight} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %m%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} %5p --- [%15.15t] %-40.40logger{39} : %m%n"
+  logback:
+    rollingpolicy:
+      max-file-size: 5MB
+      max-history: 5
+
+# API Documentation (Swagger/OpenAPI)
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method
+    tryItOutEnabled: false
+    displayRequestDuration: true
+    deepLinking: true
+    defaultModelsExpandDepth: 1
+    defaultModelExpandDepth: 1

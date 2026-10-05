@@ -1,0 +1,524 @@
+{
+  "info": {
+    "_postman_id": "8b6b6e2a-1f0a-4e0a-9b5e-user-service-collection",
+    "name": "user-service",
+    "description": "Registration/login/profile/activity endpoints for user-service (:8085), plus a folder that goes through api-gateway (:8080) to exercise JWT enforcement and the X-User-Id activity-ownership check (see ADR-0007, ADR-0011 Update 5). Run top-to-bottom within a folder — later requests reuse variables the earlier ones set.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8085", "description": "user-service, called directly" },
+    { "key": "gatewayUrl", "value": "http://localhost:8080", "description": "api-gateway, in front of every service" },
+    { "key": "email", "value": "" },
+    { "key": "password", "value": "password123" },
+    { "key": "userId", "value": "" },
+    { "key": "token", "value": "" },
+    { "key": "emailB", "value": "" },
+    { "key": "userIdB", "value": "" },
+    { "key": "tokenB", "value": "" },
+    { "key": "emailC", "value": "" },
+    { "key": "userIdC", "value": "" },
+    { "key": "tokenC", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Direct to user-service (:8085)",
+      "description": "Hits user-service on its own port. No auth is enforced here — that only happens at api-gateway (see the other folder) — so these exercise the service's own business logic and error mapping in isolation.",
+      "item": [
+        {
+          "name": "1. Register",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.collectionVariables.set('email', 'postman-' + Date.now() + '@example.com');"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201', function () { pm.response.to.have.status(201); });",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('userId', String(json.id));",
+                  "pm.test('response has no passwordHash', function () { pm.expect(json.passwordHash).to.be.undefined; });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\",\n  \"displayName\": \"Postman Test User\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "register"]
+            }
+          }
+        },
+        {
+          "name": "2. Register - duplicate email returns 409",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 409', function () { pm.response.to.have.status(409); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\",\n  \"displayName\": \"Postman Test User\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "register"]
+            }
+          }
+        },
+        {
+          "name": "3. Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('token', json.token);",
+                  "pm.test('token is present', function () { pm.expect(json.token).to.be.a('string').and.not.empty; });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "login"]
+            }
+          }
+        },
+        {
+          "name": "4. Login - wrong password returns 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 401', function () { pm.response.to.have.status(401); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"definitely-wrong\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "login"]
+            }
+          }
+        },
+        {
+          "name": "5. Get user by id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('email matches', function () { pm.expect(pm.response.json().email).to.eql(pm.collectionVariables.get('email')); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "{{userId}}"]
+            }
+          }
+        },
+        {
+          "name": "6. Get user by id - unknown id returns 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 404', function () { pm.response.to.have.status(404); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/999999999",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "999999999"]
+            }
+          }
+        },
+        {
+          "name": "7. Record VIEW activity",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 202', function () { pm.response.to.have.status(202); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"VIEW\",\n  \"movieId\": \"573a1390f29313caabcd42e8\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users/{{userId}}/activity",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "{{userId}}", "activity"]
+            }
+          }
+        },
+        {
+          "name": "8. Record SEARCH activity",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 202', function () { pm.response.to.have.status(202); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"SEARCH\",\n  \"query\": \"heist movie\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users/{{userId}}/activity",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "{{userId}}", "activity"]
+            }
+          }
+        },
+        {
+          "name": "9. Record activity - missing type returns 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400', function () { pm.response.to.have.status(400); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"movieId\": \"573a1390f29313caabcd42e8\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users/{{userId}}/activity",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "{{userId}}", "activity"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Through api-gateway (:8080) - auth enforced",
+      "description": "Same endpoints, but routed through api-gateway, which is where JWT validation and the X-User-Id activity-ownership check actually happen (see ADR-0007, ADR-0011 Update 5). Requires api-gateway running, not just user-service. Run in order: sets up user B, then user C, then shows C can't record activity for B.",
+      "item": [
+        {
+          "name": "1. Register user B (public route)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.collectionVariables.set('emailB', 'postman-b-' + Date.now() + '@example.com');"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.collectionVariables.set('userIdB', String(pm.response.json().id));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{emailB}}\",\n  \"password\": \"{{password}}\",\n  \"displayName\": \"User B\"\n}"
+            },
+            "url": {
+              "raw": "{{gatewayUrl}}/api/users/register",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "users", "register"]
+            }
+          }
+        },
+        {
+          "name": "2. Login user B (public route)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.collectionVariables.set('tokenB', pm.response.json().token);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{emailB}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{gatewayUrl}}/api/users/login",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "users", "login"]
+            }
+          }
+        },
+        {
+          "name": "3. Get user B profile without a token returns 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 401', function () { pm.response.to.have.status(401); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/users/{{userIdB}}",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "users", "{{userIdB}}"]
+            }
+          }
+        },
+        {
+          "name": "4. Get user B profile with a valid token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{tokenB}}" }],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/users/{{userIdB}}",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "users", "{{userIdB}}"]
+            }
+          }
+        },
+        {
+          "name": "5. User B records their own activity - 202",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 202', function () { pm.response.to.have.status(202); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tokenB}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"VIEW\",\n  \"movieId\": \"573a1390f29313caabcd42e8\"\n}"
+            },
+            "url": {
+              "raw": "{{gatewayUrl}}/api/users/{{userIdB}}/activity",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "users", "{{userIdB}}", "activity"]
+            }
+          }
+        },
+        {
+          "name": "6. Register user C (public route)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.collectionVariables.set('emailC', 'postman-c-' + Date.now() + '@example.com');"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.collectionVariables.set('userIdC', String(pm.response.json().id));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{emailC}}\",\n  \"password\": \"{{password}}\",\n  \"displayName\": \"User C\"\n}"
+            },
+            "url": {
+              "raw": "{{gatewayUrl}}/api/users/register",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "users", "register"]
+            }
+          }
+        },
+        {
+          "name": "7. Login user C (public route)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.collectionVariables.set('tokenC', pm.response.json().token);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{emailC}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{gatewayUrl}}/api/users/login",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "users", "login"]
+            }
+          }
+        },
+        {
+          "name": "8. User C tries to record activity for user B - 403",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 403', function () { pm.response.to.have.status(403); });",
+                  "pm.test('error names the reason', function () { pm.expect(pm.response.json().errorMessage).to.include('Cannot record activity for another user'); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tokenC}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"VIEW\",\n  \"movieId\": \"573a1390f29313caabcd42e8\"\n}"
+            },
+            "url": {
+              "raw": "{{gatewayUrl}}/api/users/{{userIdB}}/activity",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "users", "{{userIdB}}", "activity"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

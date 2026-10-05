@@ -83,6 +83,15 @@ services:
       MANAGEMENT_TRACING_EXPORT_ENABLED: "false"
     depends_on: [kafka]
 
+  review-service:
+    build: ./services/review-service
+    ports: ["8083:8083"]
+    environment:
+      POSTGRES_URL: jdbc:postgresql://postgres:5432/mflix_reviews
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      MANAGEMENT_TRACING_EXPORT_ENABLED: "false"
+    depends_on: [postgres, kafka]
+
 volumes:
   mongo-data:
   postgres-data:

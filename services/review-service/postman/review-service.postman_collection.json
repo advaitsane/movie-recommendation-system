@@ -1,0 +1,657 @@
+{
+  "info": {
+    "_postman_id": "3f6b1e9a-7c2d-4a3e-9d1b-review-service-collection",
+    "name": "review-service",
+    "description": "Review/rating CRUD for review-service (:8083), plus a folder that goes through api-gateway (:8080) to exercise JWT enforcement (see ADR-0007). Run top-to-bottom within a folder — later requests reuse variables the earlier ones set. userId/movieId are opaque strings here (see CreateReviewRequest's Javadoc) — no catalog-service/user-service id needs to actually exist for the direct-to-service folder; the gateway folder registers a real user via user-service so it has a token to send.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8083", "description": "review-service, called directly" },
+    { "key": "gatewayUrl", "value": "http://localhost:8080", "description": "api-gateway, in front of every service" },
+    { "key": "movieId", "value": "" },
+    { "key": "userId", "value": "" },
+    { "key": "reviewId", "value": "" },
+    { "key": "email", "value": "" },
+    { "key": "password", "value": "password123" },
+    { "key": "token", "value": "" },
+    { "key": "gatewayReviewId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Direct to review-service (:8083)",
+      "description": "Hits review-service on its own port. No auth is enforced here — that only happens at api-gateway (see the other folder) — so these exercise the service's own CRUD, validation, and outbox-write logic in isolation.",
+      "item": [
+        {
+          "name": "1. Create review",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// movie_id is VARCHAR(24) in Postgres (sized for a Mongo ObjectId hex string, see",
+                  "// V1__create_reviews_and_outbox.sql) - a longer value trips DataIntegrityViolationException,",
+                  "// which GlobalExceptionHandler maps to a 409 ('already exists'), not a validation error.",
+                  "const hex = (Date.now().toString(16) + Math.random().toString(16).slice(2)).slice(0, 24);",
+                  "pm.collectionVariables.set('movieId', hex);",
+                  "pm.collectionVariables.set('userId', 'postman-user-' + Date.now());"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201', function () { pm.response.to.have.status(201); });",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('reviewId', String(json.id));",
+                  "pm.test('response echoes the request', function () {",
+                  "    pm.expect(json.userId).to.eql(pm.collectionVariables.get('userId'));",
+                  "    pm.expect(json.movieId).to.eql(pm.collectionVariables.get('movieId'));",
+                  "    pm.expect(json.rating).to.eql(5);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"movieId\": \"{{movieId}}\",\n  \"rating\": 5,\n  \"reviewText\": \"Postman test review - great movie.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/reviews",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reviews"]
+            }
+          }
+        },
+        {
+          "name": "2. Create review - validation errors",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400', function () { pm.response.to.have.status(400); });",
+                  "const json = pm.response.json();",
+                  "pm.test('field errors present for movieId and rating', function () {",
+                  "    pm.expect(json).to.have.property('movieId');",
+                  "    pm.expect(json).to.have.property('rating');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"rating\": 9\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/reviews",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reviews"]
+            }
+          }
+        },
+        {
+          "name": "3. Create review - duplicate (userId, movieId) returns 409",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 409', function () { pm.response.to.have.status(409); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"movieId\": \"{{movieId}}\",\n  \"rating\": 3\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/reviews",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reviews"]
+            }
+          }
+        },
+        {
+          "name": "4. Get review by id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('rating matches', function () { pm.expect(pm.response.json().rating).to.eql(5); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reviews/{{reviewId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reviews", "{{reviewId}}"]
+            }
+          }
+        },
+        {
+          "name": "5. Get review by id - unknown id returns 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 404', function () { pm.response.to.have.status(404); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reviews/999999999",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reviews", "999999999"]
+            }
+          }
+        },
+        {
+          "name": "6. List reviews by movieId",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('contains the created review', function () {",
+                  "    const ids = pm.response.json().content.map(r => String(r.id));",
+                  "    pm.expect(ids).to.include(pm.collectionVariables.get('reviewId'));",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reviews?movieId={{movieId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reviews"],
+              "query": [{ "key": "movieId", "value": "{{movieId}}" }]
+            }
+          }
+        },
+        {
+          "name": "7. List reviews by userId, paginated",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "pm.test('page size respected', function () { pm.expect(json.content.length).to.be.at.most(5); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reviews?userId={{userId}}&page=0&size=5",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reviews"],
+              "query": [
+                { "key": "userId", "value": "{{userId}}" },
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "5" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "8. List reviews - missing movieId and userId returns 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('error names the reason', function () { pm.expect(pm.response.json().errorMessage).to.include('At least one of movieId or userId'); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reviews",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reviews"]
+            }
+          }
+        },
+        {
+          "name": "9. Update review - rating change emits rating.updated",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('rating updated', function () { pm.expect(pm.response.json().rating).to.eql(4); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 4\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/reviews/{{reviewId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reviews", "{{reviewId}}"]
+            }
+          }
+        },
+        {
+          "name": "10. Update review - text only, no rating.updated event",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('text updated, rating unchanged', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.reviewText).to.eql('Edited via Postman - still great.');",
+                  "    pm.expect(json.rating).to.eql(4);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reviewText\": \"Edited via Postman - still great.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/reviews/{{reviewId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reviews", "{{reviewId}}"]
+            }
+          }
+        },
+        {
+          "name": "11. Update review - rating out of range returns 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('error names the reason', function () { pm.expect(pm.response.json().errorMessage).to.include('rating must be between 1 and 5'); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 0\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/reviews/{{reviewId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reviews", "{{reviewId}}"]
+            }
+          }
+        },
+        {
+          "name": "12. Update review - no fields provided returns 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400', function () { pm.response.to.have.status(400); });",
+                  "pm.test('error names the reason', function () { pm.expect(pm.response.json().errorMessage).to.include('No update data provided'); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/reviews/{{reviewId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reviews", "{{reviewId}}"]
+            }
+          }
+        },
+        {
+          "name": "13. Update review - unknown id returns 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 404', function () { pm.response.to.have.status(404); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 3\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/reviews/999999999",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reviews", "999999999"]
+            }
+          }
+        },
+        {
+          "name": "14. Delete review",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 204', function () { pm.response.to.have.status(204); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reviews/{{reviewId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reviews", "{{reviewId}}"]
+            }
+          }
+        },
+        {
+          "name": "15. Get review after delete - 404 confirms deletion",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 404', function () { pm.response.to.have.status(404); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reviews/{{reviewId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reviews", "{{reviewId}}"]
+            }
+          }
+        },
+        {
+          "name": "16. Delete review - unknown id returns 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 404', function () { pm.response.to.have.status(404); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reviews/999999999",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reviews", "999999999"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Through api-gateway (:8080) - auth enforced",
+      "description": "Same endpoints, but routed through api-gateway, which is where JWT validation actually happens (see ADR-0007). Requires api-gateway and user-service running, not just review-service. Registers/logs in a real user via user-service's public routes to get a token, since review-service itself doesn't tie a review's userId field to the caller's authenticated identity (any opaque userId string is accepted in the body either way).",
+      "item": [
+        {
+          "name": "1. List reviews without a token returns 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 401', function () { pm.response.to.have.status(401); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/reviews?movieId=any-movie",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "reviews"],
+              "query": [{ "key": "movieId", "value": "any-movie" }]
+            }
+          }
+        },
+        {
+          "name": "2. Register (public route)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.collectionVariables.set('email', 'postman-review-' + Date.now() + '@example.com');"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201', function () { pm.response.to.have.status(201); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\",\n  \"displayName\": \"Postman Review Tester\"\n}"
+            },
+            "url": {
+              "raw": "{{gatewayUrl}}/api/users/register",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "users", "register"]
+            }
+          }
+        },
+        {
+          "name": "3. Login (public route)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.collectionVariables.set('token', pm.response.json().token);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{gatewayUrl}}/api/users/login",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "users", "login"]
+            }
+          }
+        },
+        {
+          "name": "4. Create review with a valid token",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// movie_id is VARCHAR(24) in Postgres - keep this hex and short (see the direct-to-service folder's create-review prerequest script for the full explanation).",
+                  "const hex = (Date.now().toString(16) + Math.random().toString(16).slice(2)).slice(0, 24);",
+                  "pm.collectionVariables.set('movieId', hex);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.collectionVariables.set('gatewayReviewId', String(pm.response.json().id));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"gateway-postman-user\",\n  \"movieId\": \"{{movieId}}\",\n  \"rating\": 4,\n  \"reviewText\": \"Created through the gateway.\"\n}"
+            },
+            "url": {
+              "raw": "{{gatewayUrl}}/api/reviews",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "reviews"]
+            }
+          }
+        },
+        {
+          "name": "5. Get the review with a valid token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/reviews/{{gatewayReviewId}}",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "reviews", "{{gatewayReviewId}}"]
+            }
+          }
+        },
+        {
+          "name": "6. Delete the review with a valid token (cleanup)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 204', function () { pm.response.to.have.status(204); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/reviews/{{gatewayReviewId}}",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "reviews", "{{gatewayReviewId}}"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

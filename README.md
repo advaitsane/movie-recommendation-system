@@ -18,7 +18,7 @@ records (ADRs) behind it.
 | 0 | Repo scaffolding, infrastructure in docker-compose | ✅ |
 | 1 | CI: build and test every service on each PR | ✅ |
 | 2 | catalog-service and search-service (CQRS read model over Kafka) | ✅ |
-| 3 | review-service (Postgres, outbox pattern) | ⏳ |
+| 3 | review-service (Postgres, outbox pattern) | ✅ |
 | 4 | recommendation-service (content + collaborative blend, Redis cache) | ⏳ |
 | 5 | user-service (registration, JWT issuance, activity events) | ⏳ |
 | 6 | api-gateway (routing, JWT enforcement, rate limiting, circuit breakers) | ⏳ |
@@ -140,6 +140,8 @@ collection:
 - [catalog-service](services/catalog-service/README.md) (:8081)
 - [search-service](services/search-service/README.md) (:8082). Vector search needs an
   embedding-provider key; without one those two endpoints return 503 and everything else works.
+- [review-service](services/review-service/README.md) (:8083). Uses the compose Postgres; Flyway
+  creates its schema on first start.
 
 All credentials in `docker-compose.yml` are local-development placeholders. Real secrets (such as
 an embedding-provider API key) go in a gitignored `application-local.yml`; see each service's

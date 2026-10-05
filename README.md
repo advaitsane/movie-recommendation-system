@@ -20,7 +20,7 @@ records (ADRs) behind it.
 | 2 | catalog-service and search-service (CQRS read model over Kafka) | ✅ |
 | 3 | review-service (Postgres, outbox pattern) | ✅ |
 | 4 | recommendation-service (content + collaborative blend, Redis cache) | ✅ |
-| 5 | user-service (registration, JWT issuance, activity events) | ⏳ |
+| 5 | user-service (registration, JWT issuance, activity events) | ✅ |
 | 6 | api-gateway (routing, JWT enforcement, rate limiting, circuit breakers) | ⏳ |
 | 7 | Observability (OpenTelemetry + Jaeger, Prometheus, Grafana) | ⏳ |
 | 8 | config-server | ⏳ |
@@ -144,6 +144,8 @@ collection:
   creates its schema on first start.
 - [recommendation-service](services/recommendation-service/README.md) (:8084). Uses the compose
   Mongo and Redis; builds its read models from catalog and review events.
+- [user-service](services/user-service/README.md) (:8085). Uses its own `mflix_users` database on
+  the compose Postgres. It issues JWTs; api-gateway, the next step, enforces them.
 
 All credentials in `docker-compose.yml` are local-development placeholders. Real secrets (such as
 an embedding-provider API key) go in a gitignored `application-local.yml`; see each service's

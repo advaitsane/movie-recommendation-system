@@ -17,4 +17,5 @@ Each ADR is added to this index in the same pull request as the work it describe
 | [0005](0005-recommendation-service-own-database-and-blend.md) | recommendation-service owns its data; blends content and collaborative signals |
 | [0006](0006-user-service-auth-and-activity-events.md) | user-service issues JWTs but leaves enforcement to the gateway; activity events skip the outbox |
 | [0007](0007-api-gateway-routing-and-deferred-discovery.md) | api-gateway routes via configured URLs, enforces JWTs, defers discovery |
+| [0008](0008-observability-otel-prometheus-grafana.md) | OpenTelemetry tracing and Prometheus/Grafana metrics across all services |
 | [0012](0012-oauth2-oidc-migration-path.md) | Migration path from self-issued HS256 JWTs to an external OAuth2/OIDC provider (proposed, deferred) |

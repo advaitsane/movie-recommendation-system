@@ -1,0 +1,13 @@
+# Auto-provisions the Prometheus datasource on grafana container start, so metrics are queryable
+# immediately instead of requiring a manual "Add data source" click every time the container is
+# recreated. No pre-built dashboards are provisioned yet — deliberately deferred, see
+# docs/adr/0008's "Alternatives considered".
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false

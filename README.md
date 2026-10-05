@@ -22,7 +22,7 @@ records (ADRs) behind it.
 | 4 | recommendation-service (content + collaborative blend, Redis cache) | ✅ |
 | 5 | user-service (registration, JWT issuance, activity events) | ✅ |
 | 6 | api-gateway (routing, JWT enforcement, rate limiting, circuit breakers) | ✅ |
-| 7 | Observability (OpenTelemetry + Jaeger, Prometheus, Grafana) | ⏳ |
+| 7 | Observability (OpenTelemetry + Jaeger, Prometheus, Grafana) | ✅ |
 | 8 | config-server | ⏳ |
 | 9 | Load testing | ⏳ |
 | 10 | Chaos testing and hardening | ⏳ |
@@ -149,6 +149,15 @@ collection:
 - [api-gateway](services/api-gateway/README.md) (:8080). The single entry point for `/api/**`:
   routes to the services above and requires a valid JWT on every route except registration,
   login and movie browsing.
+
+**4. Observability.** `docker compose up -d` also starts Jaeger, Prometheus and Grafana. Every
+service exposes `/actuator/health` and `/actuator/prometheus` and exports traces over OTLP (see
+ADR-0008):
+
+- Jaeger UI: http://localhost:16686
+- Prometheus: http://localhost:9090 (one scrape target per service)
+- Grafana: http://localhost:3001 (`admin`/`admin`; the Prometheus datasource is provisioned
+  automatically, no dashboards yet)
 
 All credentials in `docker-compose.yml` are local-development placeholders. Real secrets (such as
 an embedding-provider API key) go in a gitignored `application-local.yml`; see each service's

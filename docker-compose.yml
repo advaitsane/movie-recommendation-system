@@ -72,7 +72,8 @@ services:
       USER_SERVICE_URL: http://user-service:8085
       # Shared with user-service via the x-jwt-secret anchor at the top of this file.
       JWT_SECRET: *jwt-secret
-      MANAGEMENT_TRACING_EXPORT_ENABLED: "false"
+      # OTLP/HTTP trace export target — see docs/adr/0008. Same value in every service below.
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://jaeger:4318/v1/traces
 
   # ---------- Domain services ----------
   catalog-service:
@@ -84,9 +85,7 @@ services:
       # host.docker.internal lets the container reach the host's published port.
       MONGODB_URI: mongodb://host.docker.internal:27017/sample_mflix?directConnection=true
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      # No trace collector runs yet; exporting would log an error per batch. The observability
-      # step adds Jaeger and replaces this with its endpoint.
-      MANAGEMENT_TRACING_EXPORT_ENABLED: "false"
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://jaeger:4318/v1/traces
     depends_on: [kafka]
 
   search-service:
@@ -104,7 +103,7 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       # Docker network service name, not localhost:8081 (which only resolves to the container itself).
       CATALOG_SERVICE_URL: http://catalog-service:8081
-      MANAGEMENT_TRACING_EXPORT_ENABLED: "false"
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://jaeger:4318/v1/traces
     depends_on: [kafka]
 
   review-service:
@@ -113,7 +112,7 @@ services:
     environment:
       POSTGRES_URL: jdbc:postgresql://postgres:5432/mflix_reviews
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      MANAGEMENT_TRACING_EXPORT_ENABLED: "false"
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://jaeger:4318/v1/traces
     depends_on: [postgres, kafka]
 
   recommendation-service:
@@ -124,7 +123,7 @@ services:
       REDIS_HOST: redis
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       SEARCH_SERVICE_URL: http://search-service:8082
-      MANAGEMENT_TRACING_EXPORT_ENABLED: "false"
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://jaeger:4318/v1/traces
     depends_on: [mongo, redis, kafka]
 
   user-service:
@@ -135,8 +134,28 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       # Shared with api-gateway via the x-jwt-secret anchor at the top of this file.
       JWT_SECRET: *jwt-secret
-      MANAGEMENT_TRACING_EXPORT_ENABLED: "false"
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://jaeger:4318/v1/traces
     depends_on: [postgres, kafka]
+
+  # ---------- Observability ----------
+  jaeger:
+    image: jaegertracing/all-in-one:1.57
+    # 16686: UI. 4317: OTLP/gRPC receiver. 4318: OTLP/HTTP receiver — what every service here
+    # actually exports to (management.opentelemetry.tracing.export.otlp.endpoint), since Spring
+    # Boot's OTLP tracing exporter defaults to HTTP, not gRPC. See docs/adr/0008.
+    ports: ["16686:16686", "4317:4317", "4318:4318"]
+
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    ports: ["9090:9090"]
+    volumes: ["./infra/prometheus.yml:/etc/prometheus/prometheus.yml"]
+
+  grafana:
+    image: grafana/grafana:11.0.0
+    ports: ["3001:3000"]
+    # Auto-provisions the Prometheus datasource — see infra/grafana/provisioning/.
+    volumes: ["./infra/grafana/provisioning:/etc/grafana/provisioning"]
+    depends_on: [prometheus]
 
 volumes:
   mongo-data:

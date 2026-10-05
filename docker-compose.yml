@@ -92,6 +92,17 @@ services:
       MANAGEMENT_TRACING_EXPORT_ENABLED: "false"
     depends_on: [postgres, kafka]
 
+  recommendation-service:
+    build: ./services/recommendation-service
+    ports: ["8084:8084"]
+    environment:
+      MONGODB_URI: mongodb://mongo:27017/sample_mflix_recsys
+      REDIS_HOST: redis
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SEARCH_SERVICE_URL: http://search-service:8082
+      MANAGEMENT_TRACING_EXPORT_ENABLED: "false"
+    depends_on: [mongo, redis, kafka]
+
 volumes:
   mongo-data:
   postgres-data:

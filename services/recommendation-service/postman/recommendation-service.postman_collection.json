@@ -1,0 +1,392 @@
+{
+  "info": {
+    "_postman_id": "9a2c7d4e-5b1f-4e8a-8c3d-recommendation-service-collection",
+    "name": "recommendation-service",
+    "description": "recommendation-service (:8084) has one read endpoint: GET /api/recommendations/{userId}, blending content-based (search-service) and collaborative-filtering signals, falling back to a global popularity list for a cold-start user (see ADR-0005). Three folders: direct-to-service behavior, JWT enforcement through api-gateway (:8080), and an end-to-end folder that seeds a movie (catalog-service) and a rating (review-service) and watches the recommendation for that user change via the Kafka pipeline. The end-to-end folder needs catalog-service, review-service, Kafka, and recommendation-service all running, and its last request may need a manual re-send if Kafka consumption hasn't caught up yet — Newman/Postman scripts can't sleep mid-collection, so its final assertions are deliberately lenient about timing (see that folder's own description).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8084", "description": "recommendation-service, called directly" },
+    { "key": "gatewayUrl", "value": "http://localhost:8080", "description": "api-gateway, in front of every service" },
+    { "key": "catalogUrl", "value": "http://localhost:8081", "description": "catalog-service, used only by the end-to-end folder to seed a movie" },
+    { "key": "reviewUrl", "value": "http://localhost:8083", "description": "review-service, used only by the end-to-end folder to seed a rating" },
+    { "key": "userId", "value": "" },
+    { "key": "movieId", "value": "" },
+    { "key": "email", "value": "" },
+    { "key": "password", "value": "password123" },
+    { "key": "token", "value": "" },
+    { "key": "e2eUserId", "value": "" },
+    { "key": "e2eMovieId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Direct to recommendation-service (:8084)",
+      "description": "Hits recommendation-service on its own port. No auth is enforced here — that only happens at api-gateway (see the other folder).",
+      "item": [
+        {
+          "name": "1. Get recommendations for a brand-new user (cold start)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.collectionVariables.set('userId', 'postman-coldstart-' + Date.now());"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "pm.test('response is a list', function () { pm.expect(json).to.be.an('array'); });",
+                  "if (json.length > 0) {",
+                  "    pm.test('a cold-start user only ever gets POPULAR picks', function () {",
+                  "        json.forEach(m => pm.expect(m.source).to.eql('POPULAR'));",
+                  "    });",
+                  "} else {",
+                  "    console.log('No popularity data yet (no rating >= likeThreshold exists anywhere) - empty list is correct, not a failure.');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/recommendations/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "recommendations", "{{userId}}"]
+            }
+          }
+        },
+        {
+          "name": "2. Get recommendations with a custom limit",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('at most 3 results', function () { pm.expect(pm.response.json().length).to.be.at.most(3); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/recommendations/{{userId}}?limit=3",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "recommendations", "{{userId}}"],
+              "query": [{ "key": "limit", "value": "3" }]
+            }
+          }
+        },
+        {
+          "name": "3. Get recommendations - limit=0 falls back to the default, not an error",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 (limit<=0 is treated as \\'unset\\', per RecommendationServiceImpl)', function () { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/recommendations/{{userId}}?limit=0",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "recommendations", "{{userId}}"],
+              "query": [{ "key": "limit", "value": "0" }]
+            }
+          }
+        },
+        {
+          "name": "4. Get recommendations - response shape when non-empty",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "if (json.length > 0) {",
+                  "    const first = json[0];",
+                  "    pm.test('entry has the expected fields', function () {",
+                  "        pm.expect(first).to.include.keys('movieId', 'title', 'score', 'source');",
+                  "        pm.expect(['CONTENT', 'COLLABORATIVE', 'BOTH', 'POPULAR']).to.include(first.source);",
+                  "    });",
+                  "} else {",
+                  "    console.log('No recommendations available yet for this user/dataset - nothing to assert on shape.');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/recommendations/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "recommendations", "{{userId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Through api-gateway (:8080) - auth enforced",
+      "description": "Same endpoint, but routed through api-gateway, which is where JWT validation actually happens (see ADR-0007). Requires api-gateway and user-service running, not just recommendation-service. recommendation-service doesn't tie the {userId} path variable to the caller's authenticated identity (unlike user-service's activity endpoint) - any userId string works once a valid token is present.",
+      "item": [
+        {
+          "name": "1. Get recommendations without a token returns 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 401', function () { pm.response.to.have.status(401); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/recommendations/any-user",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "recommendations", "any-user"]
+            }
+          }
+        },
+        {
+          "name": "2. Register (public route)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.collectionVariables.set('email', 'postman-reco-' + Date.now() + '@example.com');"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201', function () { pm.response.to.have.status(201); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\",\n  \"displayName\": \"Postman Reco Tester\"\n}"
+            },
+            "url": {
+              "raw": "{{gatewayUrl}}/api/users/register",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "users", "register"]
+            }
+          }
+        },
+        {
+          "name": "3. Login (public route)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.collectionVariables.set('token', pm.response.json().token);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{gatewayUrl}}/api/users/login",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "users", "login"]
+            }
+          }
+        },
+        {
+          "name": "4. Get recommendations with a valid token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('response is a list', function () { pm.expect(pm.response.json()).to.be.an('array'); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/recommendations/gateway-postman-user",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "recommendations", "gateway-postman-user"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "End-to-end: seed via catalog + review-service, watch recommendations change",
+      "description": "Demonstrates the actual pipeline this service is built around: catalog-service publishes movie.created -> recommendation-service's MovieMetadataConsumer indexes it; review-service publishes review.created -> RatingEventConsumer records the rating and recomputes the user's genre-weight profile; the next GET for that user picks it up. Requires catalog-service, review-service, Kafka, and recommendation-service all running. Kafka consumption is asynchronous - if the final request still shows an empty list or a POPULAR-only result, wait a couple of seconds and re-send just that last request (Postman/Newman test scripts cannot sleep mid-run, so no automated delay is built in here).",
+      "item": [
+        {
+          "name": "1. Baseline: recommendations for a fresh e2e user",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.collectionVariables.set('e2eUserId', 'postman-e2e-user-' + Date.now());"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "console.log('Baseline for a never-before-seen user:', pm.response.json());"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/recommendations/{{e2eUserId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "recommendations", "{{e2eUserId}}"]
+            }
+          }
+        },
+        {
+          "name": "2. Seed a movie in catalog-service",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.collectionVariables.set('e2eMovieId', pm.response.json()._id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Postman E2E Test Movie\",\n  \"year\": 2024,\n  \"plot\": \"Seeded by the recommendation-service Postman collection.\",\n  \"genres\": [\"Sci-Fi\", \"Action\"],\n  \"directors\": [\"Postman Director\"],\n  \"cast\": [\"Postman Actor\"],\n  \"countries\": [\"USA\"],\n  \"languages\": [\"English\"],\n  \"rated\": \"PG-13\",\n  \"runtime\": 120,\n  \"poster\": \"https://example.com/postman-e2e.jpg\"\n}"
+            },
+            "url": {
+              "raw": "{{catalogUrl}}/api/movies",
+              "host": ["{{catalogUrl}}"],
+              "path": ["api", "movies"]
+            }
+          }
+        },
+        {
+          "name": "3. Rate that movie 5 stars in review-service",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201', function () { pm.response.to.have.status(201); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{e2eUserId}}\",\n  \"movieId\": \"{{e2eMovieId}}\",\n  \"rating\": 5,\n  \"reviewText\": \"Loved it - seeded by the recommendation-service Postman collection.\"\n}"
+            },
+            "url": {
+              "raw": "{{reviewUrl}}/api/reviews",
+              "host": ["{{reviewUrl}}"],
+              "path": ["api", "reviews"]
+            }
+          }
+        },
+        {
+          "name": "4. Recommendations after seeding (may need a manual re-send)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "console.log('Recommendations after seeding a rating:', json);",
+                  "console.log('If this still looks like the baseline, wait ~2-5s for Kafka consumption and re-send this request.');",
+                  "pm.test('response is a list (content will populate once Kafka delivers review.created)', function () {",
+                  "    pm.expect(json).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/recommendations/{{e2eUserId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "recommendations", "{{e2eUserId}}"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

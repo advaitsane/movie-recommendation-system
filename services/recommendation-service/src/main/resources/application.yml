@@ -1,0 +1,132 @@
+# MongoDB Configuration
+# recommendation-service owns its OWN database (sample_mflix_recsys) — local CQRS copies of
+# just enough catalog/review data to compute recommendations, never a passthrough to either
+# service's database. See docs/adr/0005.
+spring:
+  mongodb:
+    uri: ${MONGODB_URI:mongodb://localhost:27017/sample_mflix_recsys}
+    database: sample_mflix_recsys
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      # Unset, Lettuce's own connection-timeout default applies (10s) with no command timeout at
+      # all — an unreachable/wedged Redis could block a cache read/write far longer than
+      # RecommendationCache's try/catch alone would suggest (that only bounds exceptions, not how
+      # long the call takes to throw one). Bounded here the same way SearchClientConfig bounds the
+      # search-service call, so a Redis outage degrades to "recompute every time" promptly instead
+      # of a request quietly hanging on the cache layer.
+      connect-timeout: 2000ms
+      timeout: 1000ms
+  application:
+    name: recommendation-service
+  jackson2:
+    default-property-inclusion: non_null
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: recommendation-service
+
+# Server Configuration
+server:
+  port: 8084
+
+# Observability: /actuator/prometheus is scraped by the prometheus container; traces export via
+# OTLP/HTTP to the jaeger container. 100% sampling is a deliberate dev-only choice (this is a
+# low-traffic local deployment) — see docs/adr/0008.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus,info
+  tracing:
+    sampling:
+      probability: 1.0
+  # The property that actually gates the OTLP trace exporter's creation, confirmed via
+  # `--debug`'s condition-evaluation report — NOT management.otlp.tracing.endpoint, which looks
+  # equally plausible (it binds a real OtlpTracingProperties class) but silently has no effect:
+  # OtlpTracingConfigurations.ConnectionDetails only activates on this exact property. See
+  # docs/adr/0008 — this is the one thing decompiling the properties class alone didn't catch.
+  opentelemetry:
+    tracing:
+      export:
+        otlp:
+          endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:http://localhost:4318/v1/traces}
+  otlp:
+    # spring-boot-starter-opentelemetry also auto-enables an OTLP metrics push exporter by
+    # default; Jaeger only ingests OTLP traces (and logs), not metrics, so left on this silently
+    # fails every export interval. Metrics are Prometheus-scraped (pull), not OTLP-pushed here.
+    metrics:
+      export:
+        enabled: false
+
+# CORS Configuration
+cors:
+  allowed:
+    origins: ${CORS_ORIGINS:http://localhost:3000}
+
+# Kafka topic names — must match catalog-service's and review-service's own app.kafka.topics
+# values, since these are the topics this service consumes (never produces to).
+app:
+  kafka:
+    topics:
+      movie-created: movie.created
+      movie-updated: movie.updated
+      movie-deleted: movie.deleted
+      review-created: review.created
+      rating-updated: rating.updated
+  recommendation:
+    # Number of most-similar users (by genre-vector cosine similarity) whose highly-rated
+    # movies feed the collaborative signal.
+    top-k-similar-users: 10
+    # Blend weights for the final score — a deliberately simple, tunable heuristic, not a
+    # claim of ML rigor. Need not sum to 1; scores are normalized to [0,1] before blending.
+    content-weight: 0.5
+    collab-weight: 0.5
+    # How long a computed recommendation list is cached in Redis before the next GET
+    # recomputes it. Also proactively evicted on any rating event for that user — see
+    # RatingEventConsumer.
+    cache-ttl-seconds: 300
+    # A rating at or above this threshold counts as a "like" for collaborative filtering
+    # (both the user's own genre-weight contribution and what similar users are considered
+    # to have liked).
+    like-threshold: 4
+
+# search-service's base URL — the one synchronous, on-request-path inter-service call in this
+# repo (see docs/adr/0005's "Alternatives considered": the only prior sync call, search's
+# startup-only backfill from catalog, is explicitly not a request-path dependency).
+search:
+  service:
+    url: ${SEARCH_SERVICE_URL:http://localhost:8082}
+    # Bounded so a slow/unreachable search-service degrades this service's own response to a
+    # collaborative-only signal instead of hanging the request. No circuit breaker yet
+    # (Resilience4j is a later build-order step) — this bounded timeout + try/catch is the
+    # "naive" v1 version, deliberately.
+    connect-timeout-ms: 2000
+    read-timeout-ms: 3000
+
+# Logging Configuration
+logging:
+  level:
+    com.movies.recommendation: ${LOG_LEVEL:INFO}
+    org.mongodb.driver: WARN
+  pattern:
+    console: "%clr(%d{HH:mm:ss}){faint} %clr(%5p){highlight} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %m%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} %5p --- [%15.15t] %-40.40logger{39} : %m%n"
+  logback:
+    rollingpolicy:
+      max-file-size: 5MB
+      max-history: 5
+
+# API Documentation (Swagger/OpenAPI)
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method
+    tryItOutEnabled: false
+    displayRequestDuration: true
+    deepLinking: true
+    defaultModelsExpandDepth: 1
+    defaultModelExpandDepth: 1

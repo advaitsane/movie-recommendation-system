@@ -21,7 +21,7 @@ records (ADRs) behind it.
 | 3 | review-service (Postgres, outbox pattern) | ✅ |
 | 4 | recommendation-service (content + collaborative blend, Redis cache) | ✅ |
 | 5 | user-service (registration, JWT issuance, activity events) | ✅ |
-| 6 | api-gateway (routing, JWT enforcement, rate limiting, circuit breakers) | ⏳ |
+| 6 | api-gateway (routing, JWT enforcement, rate limiting, circuit breakers) | ✅ |
 | 7 | Observability (OpenTelemetry + Jaeger, Prometheus, Grafana) | ⏳ |
 | 8 | config-server | ⏳ |
 | 9 | Load testing | ⏳ |
@@ -145,7 +145,10 @@ collection:
 - [recommendation-service](services/recommendation-service/README.md) (:8084). Uses the compose
   Mongo and Redis; builds its read models from catalog and review events.
 - [user-service](services/user-service/README.md) (:8085). Uses its own `mflix_users` database on
-  the compose Postgres. It issues JWTs; api-gateway, the next step, enforces them.
+  the compose Postgres. It issues the JWTs that api-gateway validates.
+- [api-gateway](services/api-gateway/README.md) (:8080). The single entry point for `/api/**`:
+  routes to the services above and requires a valid JWT on every route except registration,
+  login and movie browsing.
 
 All credentials in `docker-compose.yml` are local-development placeholders. Real secrets (such as
 an embedding-provider API key) go in a gitignored `application-local.yml`; see each service's

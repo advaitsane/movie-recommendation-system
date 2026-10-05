@@ -1,6 +1,7 @@
-# Dev-only JWT signing secret, defined once so every service that signs or validates tokens uses
-# the same value. user-service has no default of its own: outside this compose file JWT_SECRET
-# must be set explicitly, or startup fails. Export JWT_SECRET in your shell to override this value.
+# Dev-only JWT signing secret, defined once and shared by user-service (signs) and api-gateway
+# (validates) so the two can never drift. Neither service has a default of its own: outside this
+# compose file JWT_SECRET must be set explicitly, or startup fails. Export JWT_SECRET in your
+# shell to override this value.
 x-jwt-secret: &jwt-secret ${JWT_SECRET:-dev-only-jwt-signing-secret-change-me-before-any-real-deployment-1234567890}
 
 services:
@@ -54,6 +55,24 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
     ports: ["9092:9092", "29092:29092"]
+
+  # ---------- API gateway ----------
+  api-gateway:
+    build: ./services/api-gateway
+    ports: ["8080:8080"]
+    environment:
+      # Configured base URLs, matching every other service's inter-service call pattern
+      # (e.g. search-service's CATALOG_SERVICE_URL) — NOT Eureka discovery. See ADR-0007 for
+      # why: no service in this repo registers with Eureka yet, so routing through it here
+      # would be the first consumer of infrastructure nothing else uses.
+      CATALOG_SERVICE_URL: http://catalog-service:8081
+      SEARCH_SERVICE_URL: http://search-service:8082
+      REVIEW_SERVICE_URL: http://review-service:8083
+      RECOMMENDATION_SERVICE_URL: http://recommendation-service:8084
+      USER_SERVICE_URL: http://user-service:8085
+      # Shared with user-service via the x-jwt-secret anchor at the top of this file.
+      JWT_SECRET: *jwt-secret
+      MANAGEMENT_TRACING_EXPORT_ENABLED: "false"
 
   # ---------- Domain services ----------
   catalog-service:
@@ -114,7 +133,7 @@ services:
     environment:
       POSTGRES_URL: jdbc:postgresql://postgres:5432/mflix_users
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      # Signing secret, from the x-jwt-secret anchor at the top of this file.
+      # Shared with api-gateway via the x-jwt-secret anchor at the top of this file.
       JWT_SECRET: *jwt-secret
       MANAGEMENT_TRACING_EXPORT_ENABLED: "false"
     depends_on: [postgres, kafka]

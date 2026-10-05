@@ -1,3 +1,8 @@
+# Dev-only JWT signing secret, defined once so every service that signs or validates tokens uses
+# the same value. user-service has no default of its own: outside this compose file JWT_SECRET
+# must be set explicitly, or startup fails. Export JWT_SECRET in your shell to override this value.
+x-jwt-secret: &jwt-secret ${JWT_SECRET:-dev-only-jwt-signing-secret-change-me-before-any-real-deployment-1234567890}
+
 services:
   # ---------- Data stores ----------
   mongo:
@@ -102,6 +107,17 @@ services:
       SEARCH_SERVICE_URL: http://search-service:8082
       MANAGEMENT_TRACING_EXPORT_ENABLED: "false"
     depends_on: [mongo, redis, kafka]
+
+  user-service:
+    build: ./services/user-service
+    ports: ["8085:8085"]
+    environment:
+      POSTGRES_URL: jdbc:postgresql://postgres:5432/mflix_users
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      # Signing secret, from the x-jwt-secret anchor at the top of this file.
+      JWT_SECRET: *jwt-secret
+      MANAGEMENT_TRACING_EXPORT_ENABLED: "false"
+    depends_on: [postgres, kafka]
 
 volumes:
   mongo-data:

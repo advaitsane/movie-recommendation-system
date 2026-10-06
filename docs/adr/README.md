@@ -20,4 +20,5 @@ Each ADR is added to this index in the same pull request as the work it describe
 | [0008](0008-observability-otel-prometheus-grafana.md) | OpenTelemetry tracing and Prometheus/Grafana metrics across all services |
 | [0009](0009-config-server.md) | Stand up config-server (server only, no client migration yet) |
 | [0010](0010-load-test-timeout-budget-mismatch.md) | Load testing reveals a timeout-budget mismatch between gateway and recommendation fallback |
+| [0011](0011-chaos-testing.md) | Chaos testing: dependency, service, network and resource fault injection |
 | [0012](0012-oauth2-oidc-migration-path.md) | Migration path from self-issued HS256 JWTs to an external OAuth2/OIDC provider (proposed, deferred) |

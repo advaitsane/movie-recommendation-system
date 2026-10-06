@@ -1,0 +1,7 @@
+--- summary: results/01_dependency_kill_mflix-mongo_20260917T212002/health.csv ---
+api-gateway: no unhealthy readings
+catalog-service: no unhealthy readings
+search-service: no unhealthy readings
+review-service: no unhealthy readings
+recommendation-service: no unhealthy readings
+user-service: no unhealthy readings

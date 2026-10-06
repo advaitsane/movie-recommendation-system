@@ -1,0 +1,7 @@
+--- summary: results/02_service_kill_search-service_20260917T212222/health.csv ---
+api-gateway: no unhealthy readings
+catalog-service: no unhealthy readings
+search-service: 20 unhealthy readings, first=1789705353 last=1789705406 (epoch)
+review-service: no unhealthy readings
+recommendation-service: no unhealthy readings
+user-service: no unhealthy readings

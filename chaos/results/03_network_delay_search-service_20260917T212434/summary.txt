@@ -1,0 +1,7 @@
+--- summary: results/03_network_delay_search-service_20260917T212434/health.csv ---
+api-gateway: no unhealthy readings
+catalog-service: no unhealthy readings
+search-service: no unhealthy readings
+review-service: no unhealthy readings
+recommendation-service: no unhealthy readings
+user-service: no unhealthy readings

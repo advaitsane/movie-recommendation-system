@@ -7,11 +7,11 @@ domain. The goal is to study reliability and scalability engineering on a realis
 read models, the outbox pattern, circuit breakers and graceful degradation, each one checked with
 load tests and chaos experiments rather than assumed.
 
-## Status: published in stages
+## Status
 
-The system is finished and runs locally. It is being published one build step per pull request,
-so that the history shows how it was built and why. Each PR links the architecture decision
-records (ADRs) behind it.
+The system runs locally end to end. It was published one build step per pull request, so the
+history shows how it was built and why. Each PR links the architecture decision records (ADRs)
+behind it.
 
 | Step | Contents | Status |
 |---|---|---|
@@ -25,7 +25,7 @@ records (ADRs) behind it.
 | 7 | Observability (OpenTelemetry + Jaeger, Prometheus, Grafana) | ✅ |
 | 8 | config-server (git-backed); Eureka left out by design | ✅ |
 | 9 | Load testing (k6) and per-container memory limits | ✅ |
-| 10 | Chaos testing and hardening | ⏳ |
+| 10 | Chaos testing and hardening | ✅ |
 
 ## Why this project
 
@@ -181,9 +181,67 @@ found (a gateway timeout shorter than recommendation-service's own fallback, a c
 `mongodb-atlas-local` image, JVMs OOM-killed before each service had a memory limit), how each
 was fixed, and the raw k6 summaries kept in `loadtest/results/`.
 
+**6. Chaos testing.** [`chaos/`](chaos/) holds four bash experiments. Each one runs looping k6
+smoke traffic, polls every service's `/actuator/health` every 2 seconds, injects one fault,
+restores it, and summarizes which services went unhealthy and when:
+
+```bash
+chaos/01_dependency_kill.sh mflix-mongo 30              # stop mongo, postgres, kafka or mflix-mongo
+chaos/02_service_kill.sh search-service 30              # docker kill an app service
+chaos/03_network_fault.sh delay search-service 8000 30  # latency, packet loss or partition (pumba)
+chaos/04_resource_exhaustion.sh search-service 96 30    # shrink a container's memory limit
+```
+
+Results go to `chaos/results/<experiment>_<timestamp>/`: the health CSV, a summary and a written
+`FINDINGS.md` (the k6 logs are not kept). ADR-0011 records the experiments and the hardening that
+followed them, including three gaps that tests alone had not caught:
+- a Mongo outage that `/actuator/health` did not report
+- gateway circuit breakers that could never open
+- Postgres circuit breakers wrapped inside `@Transactional` methods, where they protected nothing
+
+[`docs/service-hardening-checklist.md`](docs/service-hardening-checklist.md) is the per-service
+checklist that came out of that work.
+
 All credentials in `docker-compose.yml` are local-development placeholders. Real secrets (such as
 an embedding-provider API key) go in a gitignored `application-local.yml`; see each service's
-README as it lands.
+README.
+
+## Demo
+
+[`postman/full-demo.postman_collection.json`](postman/full-demo.postman_collection.json) walks
+through the whole system in order, entirely through api-gateway (:8080):
+1. Register and log in.
+2. Browse and search the public catalog.
+3. Show the gateway rejecting an unauthenticated request to a protected route.
+4. Get cold-start (popularity fallback) recommendations.
+5. Add a movie and review it.
+6. Watch recommendations personalize once Kafka delivers the rating event.
+
+Import it into Postman; no environment is needed. Each run registers a fresh user, so it can be
+repeated. Each service's README links its own, deeper collection (CRUD, validation and error
+cases, direct calls to the service port).
+
+## Known limitations
+
+These are known and documented, not fixed yet:
+
+- **No dynamic service discovery.** Every inter-service call uses a configured URL, which is
+  enough at one instance per service (ADR-0007).
+- **The activity endpoint trusts its path id outside the gateway.**
+  - `POST /api/users/{id}/activity` rejects a request whose gateway-forwarded `X-User-Id` doesn't
+    match `{id}`.
+  - A caller that bypasses api-gateway sends no header, so it is still trusted on the path id
+    (ADR-0006, ADR-0011 Update 5).
+- **Self-issued HS256 JWTs** with a shared secret. ADR-0012 lays out the move to an external
+  OAuth2/OIDC provider and when it becomes worth doing.
+- **config-server has no clients yet.** Every service still reads its own `application.yml`
+  (ADR-0009).
+- **No restart policy for the app services in compose.** An OOM-killed container stays down
+  until restarted (ADR-0011, Experiment 4).
+- **review-service: a connection lost in the middle of a transaction** is a different failure
+  from pool exhaustion. Its circuit breaker doesn't cover it (ADR-0011 Update 6).
+- **catalog-service and search-service differ by one movie** (20,287 vs 20,286) after a full
+  backfill. This doesn't affect either service's results, and hasn't been investigated.
 
 ## Repo layout
 
@@ -192,9 +250,12 @@ movie-recommendation-system/
 ├── docker-compose.yml
 ├── infra/              # config mounted into the compose containers
 ├── loadtest/           # k6 load test and recorded results (ADR-0010)
+├── chaos/              # fault-injection experiments and their findings (ADR-0011)
+├── postman/            # end-to-end demo collection through api-gateway
 ├── services/           # one directory per service, each its own Maven project
 └── docs/
-    └── adr/            # architecture decision records, one per significant decision
+    ├── adr/            # architecture decision records, one per significant decision
+    └── service-hardening-checklist.md
 ```
 
 ## Credits

@@ -72,11 +72,26 @@ services:
   # inter-service call uses a configured URL instead). A `build:` entry here with nothing to
   # build would break `docker compose up` for every service below that depended on it.
 
-  # ---------- API gateway ----------
+  # Every service below (api-gateway + the 5 domain services) gets an explicit `mem_limit` +
+  # `JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=65.0`. See ADR-0010 (Updates 2-3): with no container
+  # memory limit visible, each JVM's default heap sizing (`MaxRAMPercentage=25%`) was computed
+  # against the *entire* Docker Desktop VM (3.8GB) rather than its own share. Six JVMs doing that
+  # independently under real concurrent load oversubscribed the VM, and the kernel OOM-killed
+  # recommendation-service and then api-gateway (`docker inspect --format '{{.State.OOMKilled}}'`
+  # → true on both). With `mem_limit` set, the container-aware JVM sizes its heap against its own
+  # limit instead. First-pass sizing (256-384m, 70% heap) was too tight: search-service's startup
+  # went from ~15s to 81s under GC pressure with no load applied, and several services idled at
+  # 90%+ of their own limit. The limits were revised upward (below) and the heap percentage
+  # trimmed to 65% to leave more non-heap headroom (metaspace/threads/buffers for this stack's
+  # OTel+Kafka+Mongo+Springdoc dependency set). This bounds the failure mode (a service that
+  # still runs over its own limit gets killed in isolation, not at the expense of unrelated
+  # services); it does not guarantee survival under a worst-case stress test on an 8GB laptop.
   api-gateway:
     build: ./services/api-gateway
     ports: ["8080:8080"]
+    mem_limit: 384m
     environment:
+      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=65.0
       # Configured base URLs, matching every other service's inter-service call pattern
       # (e.g. search-service's CATALOG_SERVICE_URL) — NOT Eureka discovery. See ADR-0007 for
       # why: no service in this repo registers with Eureka yet, so routing through it here
@@ -95,7 +110,9 @@ services:
   catalog-service:
     build: ./services/catalog-service
     ports: ["8081:8081"]
+    mem_limit: 288m
     environment:
+      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=65.0
       # Points at the mongodb-atlas-local container run separately on the host
       # (already seeded with sample_mflix), not the generic `mongo` service above.
       # host.docker.internal lets the container reach the host's published port.
@@ -107,7 +124,13 @@ services:
   search-service:
     build: ./services/search-service
     ports: ["8082:8082"]
+    # Highest of the domain services: vector search + embedding-provider HTTP calls and the
+    # Mongo aggregation pipeline behind them showed the highest memory under load testing
+    # (up to ~370MB RSS), and at 320m this service's startup measured 81s instead of the normal
+    # ~15-20s under GC pressure — bumped further after that was observed. See ADR-0010.
+    mem_limit: 384m
     environment:
+      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=65.0
       # Same mongodb-atlas-local container on the host as catalog-service (see its
       # comment above), just a different database — not the generic `mongo` service.
       MONGODB_URI: mongodb://host.docker.internal:27017/sample_mflix_search?directConnection=true
@@ -125,7 +148,9 @@ services:
   review-service:
     build: ./services/review-service
     ports: ["8083:8083"]
+    mem_limit: 300m
     environment:
+      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=65.0
       POSTGRES_URL: jdbc:postgresql://postgres:5432/mflix_reviews
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://jaeger:4318/v1/traces
@@ -134,7 +159,12 @@ services:
   recommendation-service:
     build: ./services/recommendation-service
     ports: ["8084:8084"]
+    # Higher than the lighter domain services: this is the one first OOM-killed under load
+    # testing, and it does its own in-process collaborative-filtering cosine-similarity
+    # computation on top of a synchronous call to search-service. See ADR-0010.
+    mem_limit: 352m
     environment:
+      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=65.0
       MONGODB_URI: mongodb://mongo:27017/sample_mflix_recsys
       REDIS_HOST: redis
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
@@ -145,7 +175,9 @@ services:
   user-service:
     build: ./services/user-service
     ports: ["8085:8085"]
+    mem_limit: 300m
     environment:
+      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=65.0
       POSTGRES_URL: jdbc:postgresql://postgres:5432/mflix_users
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       # Shared with api-gateway via the x-jwt-secret anchor at the top of this file.

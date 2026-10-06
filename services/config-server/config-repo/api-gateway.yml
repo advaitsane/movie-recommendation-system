@@ -1,0 +1,68 @@
+# Served by config-server, but NOT read by api-gateway yet: no service is a Spring Cloud
+# Config client (ADR-0009, phase 1). Live config is still the service's own application.yml
+# (services/api-gateway/src/main/resources/); these values mirror it so the server has
+# something real to serve and test against. Keep both in sync until clients are migrated.
+
+server:
+  port: 8080
+
+spring:
+  cloud:
+    gateway:
+      server:
+        webflux:
+          routes:
+            - id: search-service
+              uri: ${SEARCH_SERVICE_URL:http://localhost:8082}
+              predicates:
+                - Path=/api/movies/search/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: searchServiceCB
+                    fallbackUri: forward:/fallback/search
+            - id: catalog-service
+              uri: ${CATALOG_SERVICE_URL:http://localhost:8081}
+              predicates:
+                - Path=/api/movies/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: catalogServiceCB
+                    fallbackUri: forward:/fallback/catalog
+            - id: review-service
+              uri: ${REVIEW_SERVICE_URL:http://localhost:8083}
+              predicates:
+                - Path=/api/reviews/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: reviewServiceCB
+                    fallbackUri: forward:/fallback/reviews
+            - id: recommendation-service
+              uri: ${RECOMMENDATION_SERVICE_URL:http://localhost:8084}
+              predicates:
+                - Path=/api/recommendations/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: recommendationServiceCB
+                    fallbackUri: forward:/fallback/recommendations
+            - id: user-service
+              uri: ${USER_SERVICE_URL:http://localhost:8085}
+              predicates:
+                - Path=/api/users/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: userServiceCB
+                    fallbackUri: forward:/fallback/users
+
+# No default: secrets are never stored in this repo. Resolved from JWT_SECRET by the client.
+jwt:
+  secret: ${JWT_SECRET:}
+
+gateway:
+  rate-limit:
+    limit-for-period: 50
+    limit-refresh-period-ms: 1000

@@ -1,0 +1,17 @@
+# Served by config-server, but NOT read by user-service yet: no service is a Spring Cloud
+# Config client (ADR-0009, phase 1). Live config is still the service's own application.yml
+# (services/user-service/src/main/resources/); these values mirror it so the server has
+# something real to serve and test against. Keep both in sync until clients are migrated.
+
+server:
+  port: 8085
+
+spring:
+  datasource:
+    url: ${POSTGRES_URL:jdbc:postgresql://localhost:5432/mflix_users}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+# No default: secrets are never stored in this repo. Resolved from JWT_SECRET by the client.
+jwt:
+  secret: ${JWT_SECRET:}

@@ -1,0 +1,14 @@
+# Served by config-server, but NOT read by catalog-service yet: no service is a Spring Cloud
+# Config client (ADR-0009, phase 1). Live config is still the service's own application.yml
+# (services/catalog-service/src/main/resources/); these values mirror it so the server has
+# something real to serve and test against. Keep both in sync until clients are migrated.
+
+server:
+  port: 8081
+
+spring:
+  mongodb:
+    uri: ${MONGODB_URI:mongodb://localhost:27017/sample_mflix}
+    database: sample_mflix
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}

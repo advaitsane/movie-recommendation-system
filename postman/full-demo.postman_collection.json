@@ -1,0 +1,380 @@
+{
+  "info": {
+    "_postman_id": "f3d7a2b0-8e2b-4a1e-9c8a-movie-rec-full-demo",
+    "name": "movie-recommendation-system - Full Demo (via api-gateway)",
+    "description": "One narrative walk through every service, entirely through api-gateway (:8080) — the single front door for the whole system (ADR-0007). Run top-to-bottom; later requests reuse variables earlier ones set.\n\nStory: register a user, browse/search the public catalog, prove the gateway actually enforces auth on the protected routes, check cold-start recommendations, write a review, then watch recommendations personalize once Kafka delivers the rating event to recommendation-service.\n\nEach service also has its own deeper collection (CRUD, validation, error cases, direct-to-service ports) in that service's directory — this one is the single-pass demo, not a substitute for those.\n\nPrerequisites: full docker-compose stack up (postgres, kafka, mongo, redis, catalog/search/review/recommendation/user-service, api-gateway) plus the standalone mflix-mongo container started (`docker start mflix-mongo`) so catalog/search-service have real seeded data.\n\nOptional resilience check once you're through this collection: `docker kill` catalog-service or search-service mid-demo and re-run a browse/search request — api-gateway's circuit breaker returns a clean 503 fallback instead of hanging or a raw connection error (verified in ADR-0011 Update 4). Not automated here since it needs a manual docker command between requests.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "gatewayUrl", "value": "http://localhost:8080", "description": "api-gateway - the only base URL this collection uses" },
+    { "key": "email", "value": "" },
+    { "key": "password", "value": "password123" },
+    { "key": "userId", "value": "" },
+    { "key": "token", "value": "" },
+    { "key": "demoMovieId", "value": "" },
+    { "key": "reviewId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "1. Register & Login",
+      "description": "user-service, through the gateway. /api/users/register and /api/users/login are the only public user-service routes (see JwtAuthenticationGlobalFilter's allowlist).",
+      "item": [
+        {
+          "name": "1. Register demo user",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.collectionVariables.set('email', 'demo-' + Date.now() + '@example.com');"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201', function () { pm.response.to.have.status(201); });",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('userId', String(json.id));",
+                  "pm.test('response has no passwordHash', function () { pm.expect(json.passwordHash).to.be.undefined; });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\",\n  \"displayName\": \"Demo User\"\n}"
+            },
+            "url": {
+              "raw": "{{gatewayUrl}}/api/users/register",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "users", "register"]
+            }
+          }
+        },
+        {
+          "name": "2. Login (get a JWT)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('token', json.token);",
+                  "pm.test('token is present', function () { pm.expect(json.token).to.be.a('string').and.not.empty; });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{gatewayUrl}}/api/users/login",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "users", "login"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Browse & Search (public - no token needed)",
+      "description": "catalog-service and search-service, through the gateway. /api/movies/** is on the public allowlist, so these work with no Authorization header at all - discovery is deliberately open.",
+      "item": [
+        {
+          "name": "3. Browse all movies (catalog-service)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('response is a page of movies', function () { pm.expect(pm.response.json().content).to.be.an('array'); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/movies?page=0&size=10&sort=title,asc",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "movies"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "10" },
+                { "key": "sort", "value": "title,asc" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "4. Text search for 'matrix' (search-service)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('response is a list of results', function () { pm.expect(pm.response.json()).to.be.an('array'); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/movies/search?q=matrix&page=0&size=10",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "movies", "search"],
+              "query": [
+                { "key": "q", "value": "matrix" },
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "5. Semantic search (search-service, may 503 with no embedding key)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 (embedding provider configured) or 503 (fails soft, no key set)', function () {",
+                  "    pm.expect([200, 503]).to.include(pm.response.code);",
+                  "});",
+                  "if (pm.response.code === 503) {",
+                  "    console.log('No EMBEDDING_PROVIDER API key configured for search-service - this 503 is expected fail-soft behavior, not a bug.');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/movies/search/vector?q=a hacker discovers reality is a simulation&limit=10",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "movies", "search", "vector"],
+              "query": [
+                { "key": "q", "value": "a hacker discovers reality is a simulation" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Prove the gateway enforces auth",
+      "description": "/api/reviews/** and /api/recommendations/** are NOT on the public allowlist - a request with no Bearer token never reaches review-service/recommendation-service at all, api-gateway rejects it with 401 first.",
+      "item": [
+        {
+          "name": "6. List reviews without a token returns 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 401', function () { pm.response.to.have.status(401); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/reviews?userId={{userId}}",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "reviews"],
+              "query": [{ "key": "userId", "value": "{{userId}}" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Cold-start recommendations (before any ratings)",
+      "description": "This user has no ratings yet, so recommendation-service falls back to a global popularity list rather than erroring (see RecommendationServiceImpl.getRecommendations - cold start path).",
+      "item": [
+        {
+          "name": "7. Recommendations for our new user (popularity fallback)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('response is a list', function () { pm.expect(pm.response.json()).to.be.an('array'); });",
+                  "console.log('Baseline (cold-start / popularity) recommendations:', pm.response.json());"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/recommendations/{{userId}}",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "recommendations", "{{userId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Seed content & write a review",
+      "description": "Seed a fresh movie via catalog-service (public route), then rate it as our demo user through review-service (protected - needs the token).",
+      "item": [
+        {
+          "name": "8. Seed a movie in catalog-service",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.collectionVariables.set('demoMovieId', pm.response.json()._id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Demo Movie\",\n  \"year\": 2024,\n  \"plot\": \"Seeded by the full-demo Postman collection.\",\n  \"genres\": [\"Sci-Fi\", \"Action\"],\n  \"directors\": [\"Demo Director\"],\n  \"cast\": [\"Demo Actor\"],\n  \"countries\": [\"USA\"],\n  \"languages\": [\"English\"],\n  \"rated\": \"PG-13\",\n  \"runtime\": 120,\n  \"poster\": \"https://example.com/demo-movie.jpg\"\n}"
+            },
+            "url": {
+              "raw": "{{gatewayUrl}}/api/movies",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "movies"]
+            }
+          }
+        },
+        {
+          "name": "9. Rate the movie 5 stars (review-service)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201', function () { pm.response.to.have.status(201); });",
+                  "pm.collectionVariables.set('reviewId', String(pm.response.json().id));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"movieId\": \"{{demoMovieId}}\",\n  \"rating\": 5,\n  \"reviewText\": \"Loved it - created by the full-demo Postman collection.\"\n}"
+            },
+            "url": {
+              "raw": "{{gatewayUrl}}/api/reviews",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "reviews"]
+            }
+          }
+        },
+        {
+          "name": "10. Rate it again - 409, a review already exists",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 409', function () { pm.response.to.have.status(409); });",
+                  "pm.test('error says already exists', function () { pm.expect(pm.response.json().errorMessage).to.include('already exists'); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"movieId\": \"{{demoMovieId}}\",\n  \"rating\": 3,\n  \"reviewText\": \"Trying to review the same movie twice.\"\n}"
+            },
+            "url": {
+              "raw": "{{gatewayUrl}}/api/reviews",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "reviews"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Watch personalization kick in (Kafka async)",
+      "description": "review-service published rating.updated/review.created to Kafka; recommendation-service's RatingEventConsumer picks it up asynchronously (typically 2-5s locally). Postman/Newman can't sleep mid-collection, so if this still looks like the cold-start baseline, just re-send this one request by hand after a few seconds.",
+      "item": [
+        {
+          "name": "11. Recommendations after rating (may need a manual re-send)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () { pm.response.to.have.status(200); });",
+                  "const json = pm.response.json();",
+                  "console.log('Recommendations after rating:', json);",
+                  "console.log('If this still matches the cold-start baseline from step 7, wait ~2-5s for Kafka delivery and re-send this request.');",
+                  "pm.test('response is a list', function () { pm.expect(json).to.be.an('array'); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/recommendations/{{userId}}",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "recommendations", "{{userId}}"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

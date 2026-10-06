@@ -24,7 +24,7 @@ records (ADRs) behind it.
 | 6 | api-gateway (routing, JWT enforcement, rate limiting, circuit breakers) | ✅ |
 | 7 | Observability (OpenTelemetry + Jaeger, Prometheus, Grafana) | ✅ |
 | 8 | config-server (git-backed); Eureka left out by design | ✅ |
-| 9 | Load testing | ⏳ |
+| 9 | Load testing (k6) and per-container memory limits | ✅ |
 | 10 | Chaos testing and hardening | ⏳ |
 
 ## Why this project
@@ -120,12 +120,14 @@ docker compose up -d mongo postgres redis kafka
 once and load MongoDB's `sample_mflix` dataset (a ~400 MB download):
 
 ```bash
-docker run -d --name mflix-mongo -p 27017:27017 mongodb/mongodb-atlas-local
+docker run -d --name mflix-mongo -p 27017:27017 -e DO_NOT_TRACK=1 mongodb/mongodb-atlas-local
 curl -sSf https://atlas-education.s3.amazonaws.com/sampledata.archive \
   | docker exec -i mflix-mongo mongorestore --archive --nsInclude='sample_mflix.*'
 ```
 
-It lives outside compose, so after a restart it needs `docker start mflix-mongo`.
+It lives outside compose, so after a restart it needs `docker start mflix-mongo`. `DO_NOT_TRACK=1`
+turns off the image's usage telemetry, whose reporter crashed the container under load
+(ADR-0010).
 
 **3. The services.** With mflix-mongo running, build and start every service published so far:
 
@@ -163,6 +165,22 @@ ADR-0008):
 - Grafana: http://localhost:3001 (`admin`/`admin`; the Prometheus datasource is provisioned
   automatically, no dashboards yet)
 
+**5. Load testing.** [`loadtest/user-journey.js`](loadtest/user-journey.js) is a
+[k6](https://k6.io) script that drives two journeys through api-gateway: anonymous browsing
+(catalog, keyword and vector search) and a registered user (register, log in, browse, review,
+get recommendations). With the full stack up:
+
+```bash
+k6 run -e SMOKE=1 loadtest/user-journey.js          # 2+2 VUs, one iteration: checks the script
+k6 run loadtest/user-journey.js                     # 15+15 VUs over 3 minutes
+k6 run -e STRESS_VUS=5 loadtest/user-journey.js     # scale down on a smaller host
+```
+
+The full run is heavy for a laptop: check the host is idle first. ADR-0010 records what the runs
+found (a gateway timeout shorter than recommendation-service's own fallback, a crash in the
+`mongodb-atlas-local` image, JVMs OOM-killed before each service had a memory limit), how each
+was fixed, and the raw k6 summaries kept in `loadtest/results/`.
+
 All credentials in `docker-compose.yml` are local-development placeholders. Real secrets (such as
 an embedding-provider API key) go in a gitignored `application-local.yml`; see each service's
 README as it lands.
@@ -173,6 +191,7 @@ README as it lands.
 movie-recommendation-system/
 ├── docker-compose.yml
 ├── infra/              # config mounted into the compose containers
+├── loadtest/           # k6 load test and recorded results (ADR-0010)
 ├── services/           # one directory per service, each its own Maven project
 └── docs/
     └── adr/            # architecture decision records, one per significant decision

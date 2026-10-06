@@ -7,3 +7,4 @@ application-local.properties
 services/.cache/
 .idea/
 
+loadtest/results/summary.json

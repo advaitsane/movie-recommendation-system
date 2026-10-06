@@ -56,6 +56,22 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
     ports: ["9092:9092", "29092:29092"]
 
+  # ---------- Spring Cloud infra ----------
+  config-server:
+    build: ./services/config-server
+    ports: ["8888:8888"]
+    # Clones config-repo/ from this project's GitHub repo at startup (main branch), so it needs
+    # network access and serves only merged config, not local edits. Set CONFIG_REPO_URI to
+    # serve from a fork or another clone. See docs/adr/0009 — not yet consumed by any client
+    # service.
+    environment:
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://jaeger:4318/v1/traces
+
+  # eureka-server intentionally omitted: services/eureka-server has no source, only a README
+  # stub (see ADR-0007 — no dynamic service discovery at single-instance local scale, every
+  # inter-service call uses a configured URL instead). A `build:` entry here with nothing to
+  # build would break `docker compose up` for every service below that depended on it.
+
   # ---------- API gateway ----------
   api-gateway:
     build: ./services/api-gateway

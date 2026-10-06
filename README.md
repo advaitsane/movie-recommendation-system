@@ -23,7 +23,7 @@ records (ADRs) behind it.
 | 5 | user-service (registration, JWT issuance, activity events) | ✅ |
 | 6 | api-gateway (routing, JWT enforcement, rate limiting, circuit breakers) | ✅ |
 | 7 | Observability (OpenTelemetry + Jaeger, Prometheus, Grafana) | ✅ |
-| 8 | config-server | ⏳ |
+| 8 | config-server (git-backed); Eureka left out by design | ✅ |
 | 9 | Load testing | ⏳ |
 | 10 | Chaos testing and hardening | ⏳ |
 
@@ -149,6 +149,10 @@ collection:
 - [api-gateway](services/api-gateway/README.md) (:8080). The single entry point for `/api/**`:
   routes to the services above and requires a valid JWT on every route except registration,
   login and movie browsing.
+- [config-server](services/config-server/README.md) (:8888). Serves the per-service files in
+  `services/config-server/config-repo/`, cloned from this repo's `main` branch on GitHub, so it
+  needs network access. No service reads from it yet (ADR-0009). There is no Eureka server:
+  every call uses a configured URL, and `services/eureka-server` is a stub by design (ADR-0007).
 
 **4. Observability.** `docker compose up -d` also starts Jaeger, Prometheus and Grafana. Every
 service exposes `/actuator/health` and `/actuator/prometheus` and exports traces over OTLP (see

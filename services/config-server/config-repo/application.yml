@@ -1,0 +1,29 @@
+# Served by config-server, but NOT read by any service yet: no service is a Spring Cloud
+# Config client (ADR-0009, phase 1). Live config is still each service's own
+# application.yml; these values mirror it so the server has something real to serve and
+# test against. Keep both in sync until clients are migrated.
+#
+# Shared across every application. Spring Cloud Config merges this with the per-application
+# file below it (application-specific values win on conflict).
+spring:
+  cloud:
+    compatibility-verifier:
+      enabled: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus,info
+  tracing:
+    sampling:
+      probability: 1.0
+  opentelemetry:
+    tracing:
+      export:
+        otlp:
+          endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:http://localhost:4318/v1/traces}
+  otlp:
+    metrics:
+      export:
+        enabled: false

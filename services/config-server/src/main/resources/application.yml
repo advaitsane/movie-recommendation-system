@@ -1,0 +1,50 @@
+spring:
+  application:
+    name: config-server
+  cloud:
+    # Spring Cloud's own compatibility-verifier hardcodes "Boot 4.0.x only" and refuses to start
+    # against this repo's pinned Boot 4.1.1 otherwise — same workaround api-gateway needed
+    # (docs/adr/0007), confirmed everything here builds/runs fine against 4.1.1 regardless.
+    compatibility-verifier:
+      enabled: false
+    config:
+      server:
+        git:
+          # This project's own GitHub repo, read from config-repo/ via search-paths: a config
+          # change reaches the server only by being merged to main, so its review and history are
+          # the project's PR history (docs/adr/0009). Override CONFIG_REPO_URI to serve from a
+          # fork or a local clone (file:///path/to/clone).
+          uri: ${CONFIG_REPO_URI:https://github.com/advaitsane/movie-recommendation-system}
+          search-paths: services/config-server/config-repo
+          default-label: main
+          # Clone up front rather than lazily on the first request, so an unreachable or wrong
+          # URI fails at startup instead of on the first client call.
+          clone-on-start: true
+
+server:
+  port: 8888
+
+# Observability: /actuator/prometheus is scraped by the prometheus container; traces export via
+# OTLP/HTTP to the jaeger container. Same pattern as every other service — see docs/adr/0008.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus,info
+  tracing:
+    sampling:
+      probability: 1.0
+  opentelemetry:
+    tracing:
+      export:
+        otlp:
+          endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:http://localhost:4318/v1/traces}
+  otlp:
+    metrics:
+      export:
+        enabled: false
+
+logging:
+  level:
+    com.movies.configserver: DEBUG
+    org.springframework.cloud.config: INFO

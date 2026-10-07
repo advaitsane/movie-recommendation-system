@@ -28,7 +28,7 @@ public class OpenApiConfig {
                         .description("User identity/auth backed by Postgres. Issues JWTs on login and " +
                                 "publishes user.activity events to Kafka.")
                         .contact(new Contact()
-                                .name("movie-recsys"))
+                                .name("movie-recommendation-system"))
                         .license(new License()
                                 .name("Apache 2.0")
                                 .url("https://www.apache.org/licenses/LICENSE-2.0.html")))

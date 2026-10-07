@@ -28,7 +28,7 @@ public class OpenApiConfig {
                         .description("Review/rating CRUD backed by Postgres. Publishes review.created/" +
                                 "rating.updated to Kafka via a transactional outbox pattern.")
                         .contact(new Contact()
-                                .name("movie-recsys"))
+                                .name("movie-recommendation-system"))
                         .license(new License()
                                 .name("Apache 2.0")
                                 .url("https://www.apache.org/licenses/LICENSE-2.0.html")))

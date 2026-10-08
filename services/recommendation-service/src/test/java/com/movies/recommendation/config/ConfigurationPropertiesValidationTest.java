@@ -30,9 +30,12 @@ class ConfigurationPropertiesValidationTest {
                     "app.recommendation.like-threshold=4",
                     "search.service.url=http://localhost:8082",
                     "search.service.connect-timeout-ms=2000",
-                    "search.service.read-timeout-ms=3000");
+                    "search.service.read-timeout-ms=3000",
+                    "catalog.service.url=http://localhost:8081",
+                    "catalog.service.connect-timeout-ms=2000",
+                    "catalog.service.read-timeout-ms=10000");
 
-    @EnableConfigurationProperties({CorsProperties.class, KafkaTopicsProperties.class, RecommendationProperties.class, SearchServiceProperties.class})
+    @EnableConfigurationProperties({CorsProperties.class, KafkaTopicsProperties.class, RecommendationProperties.class, SearchServiceProperties.class, CatalogServiceProperties.class})
     static class PropertiesConfig {
     }
 
@@ -74,6 +77,12 @@ class ConfigurationPropertiesValidationTest {
     @DisplayName("a blank search-service URL fails startup")
     void blankSearchServiceUrlFailsStartup() {
         assertStartupFails("search.service.url=", "url");
+    }
+
+    @Test
+    @DisplayName("a blank catalog-service URL fails startup")
+    void blankCatalogServiceUrlFailsStartup() {
+        assertStartupFails("catalog.service.url=", "url");
     }
 
     private void assertStartupFails(String property, String expectedInMessage) {

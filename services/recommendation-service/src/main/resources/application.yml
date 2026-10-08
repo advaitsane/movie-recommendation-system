@@ -105,6 +105,15 @@ search:
     connect-timeout-ms: 2000
     read-timeout-ms: 3000
 
+# catalog-service's base URL, used only by the startup backfill of movie_metadata
+# (CatalogBackfillRunner), which loads the seeded movies that never produced a movie.* event.
+# Never called on the request path. Set catalog.backfill.enabled=false to turn the backfill off.
+catalog:
+  service:
+    url: ${CATALOG_SERVICE_URL:http://localhost:8081}
+    connect-timeout-ms: 2000
+    read-timeout-ms: 10000
+
 # Logging Configuration
 logging:
   level:

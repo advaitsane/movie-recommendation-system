@@ -1,0 +1,110 @@
+spring:
+  application:
+    name: assistant-service
+  ai:
+    openai:
+      # Empty by default so the service starts without a key; every answer then ends in an
+      # `error` event. Set OPENAI_API_KEY, or spring.ai.openai.api-key in a gitignored
+      # application-local.yml (activated by SPRING_PROFILES_ACTIVE=local, as in search-service).
+      api-key: ${OPENAI_API_KEY:}
+      # Bounds one model call; an answer with tool calls makes several in a row.
+      timeout: 60s
+      # The OpenAI SDK's own retries on 408/429/5xx. One retry, not the SDK default of two:
+      # the user is watching the stream, and a third attempt mostly adds waiting.
+      max-retries: 1
+      chat:
+        # gpt-6-luna for development; see docs/adr/0013 for the model choice.
+        model: ${OPENAI_CHAT_MODEL:gpt-6-luna}
+        # Must be none: OpenAI rejects function tools combined with reasoning on gpt-6-luna in
+        # Chat Completions (400, "use /v1/responses or set reasoning_effort to 'none'"), and
+        # Spring AI's OpenAI client only speaks Chat Completions. See docs/adr/0013.
+        reasoning-effort: ${OPENAI_REASONING_EFFORT:none}
+    tools:
+      # Default, stated because the design depends on it: a tool that throws has its message
+      # sent back to the model as the tool result (see ToolUnavailableException), instead of
+      # failing the whole answer.
+      throw-exception-on-error: false
+      # Caps the tool calls in one answer. Each call is another round trip to the model, which
+      # resends the whole conversation: in a live test the model made six tool calls in a row
+      # after one tool timed out (18s, seven model calls). Over a limit, the model gets an error
+      # as the tool result and has to answer with what it has, instead of the stream failing.
+      limits:
+        max-calls-per-tool-default: 3
+        max-total-tool-calls: 6
+        on-limit-exceeded: return-error-response
+  mvc:
+    async:
+      # A streamed answer is an async request. The servlet container's default (30s in Tomcat)
+      # can cut off an answer that makes two or three tool calls first.
+      request-timeout: 120s
+
+# Server Configuration
+server:
+  port: 8086
+
+# Observability: /actuator/prometheus is scraped by the prometheus container; traces export via
+# OTLP/HTTP to the jaeger container. 100% sampling is a deliberate dev-only choice (this is a
+# low-traffic local deployment) — see docs/adr/0008. Spring AI adds its own observations: one
+# span per model call and per tool call, and gen_ai.client.token.usage metrics.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus,info
+  tracing:
+    sampling:
+      probability: 1.0
+  # The property that gates the OTLP trace exporter's creation — not
+  # management.otlp.tracing.endpoint, which binds but has no effect. See docs/adr/0008.
+  opentelemetry:
+    tracing:
+      export:
+        otlp:
+          endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:http://localhost:4318/v1/traces}
+  otlp:
+    # Jaeger only ingests OTLP traces, not metrics; metrics are Prometheus-scraped instead.
+    metrics:
+      export:
+        enabled: false
+
+assistant:
+  # The services the tools call. Read-only, and each failure is reported to the model rather
+  # than failing the answer, so the timeouts only bound how long one tool call can take.
+  downstream:
+    search-service-url: ${SEARCH_SERVICE_URL:http://localhost:8082}
+    recommendation-service-url: ${RECOMMENDATION_SERVICE_URL:http://localhost:8084}
+    connect-timeout-ms: 2000
+    # Above recommendation-service's own worst case (5s, see its SearchClientConfig), so a slow
+    # search-service degrades that service's answer instead of failing this tool call.
+    read-timeout-ms: 6000
+  chat:
+    # Past messages of one conversation resent to the model on each turn (user and assistant
+    # messages both count).
+    memory-max-messages: 20
+    # Movies one tool call returns to the model.
+    tool-result-limit: 8
+
+# Logging Configuration
+logging:
+  level:
+    com.movies.assistant: ${LOG_LEVEL:INFO}
+  pattern:
+    console: "%clr(%d{HH:mm:ss}){faint} %clr(%5p){highlight} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %m%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} %5p --- [%15.15t] %-40.40logger{39} : %m%n"
+  logback:
+    rollingpolicy:
+      max-file-size: 5MB
+      max-history: 5
+
+# API Documentation (Swagger/OpenAPI)
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method
+    tryItOutEnabled: false
+    displayRequestDuration: true
+    deepLinking: true
+    defaultModelsExpandDepth: 1
+    defaultModelExpandDepth: 1

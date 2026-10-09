@@ -144,3 +144,26 @@ silently drift from what's actually stored.
   (20,287) — off by 2, not investigated, not blocking any functionality
   above. Worth revisiting if it turns out to matter (e.g. during
   chaos-testing consumer idempotency, build-order step 7).
+
+## Update: the backfill's request didn't match catalog-service's API (2026-10-08)
+
+Found while building recommendation-service's backfill (ADR-0005). `CatalogBackfillRunner`
+requested `GET /api/movies?limit=100&skip=N` and parsed the response as a JSON array. The published
+catalog-service takes Spring Data's `page`/`size`/`sort` parameters and returns a page object
+(`{"content": [...], "page": {...}}`). Checked live: `?limit=100&skip=0` returns that object with
+20 movies, since both parameters are ignored. Parsing an object as an array fails, so on an empty
+`movies_search` the backfill would log an error and index nothing. Existing stacks weren't affected
+because their `movies_search` wasn't empty.
+
+Fixed: the runner now requests `page`, `size=100` (catalog-service's cap) and `sort=_id`, parses the
+page object, and stops after `totalPages`. Sorting by `_id` matters: catalog-service's default sort
+is by title, which isn't unique, so pages can overlap or skip movies. That may explain the
+off-by-two count above, but it hasn't been re-checked. `sort=id` doesn't work either: catalog-service
+sorts raw documents, so `id` isn't mapped to `_id`.
+`CatalogBackfillRunnerTest` runs the runner against a stub that serves catalog-service's real
+page format.
+
+The fix exposed a test problem the bug had hidden. `SearchServiceIntegrationTest` ran the backfill
+at startup against `localhost:8081`. With a local stack running, it now copied all 20,293 catalog
+movies into the test database, and the test's own movie was no longer the top search hit. The
+runner can now be turned off with `catalog.backfill.enabled=false`, and the test profile does so.

@@ -11,7 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
-import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
@@ -20,13 +20,16 @@ import org.springframework.web.client.RestClient;
  * search-service doesn't wait for Kafka's full retained history to replay. Runs after the Kafka
  * listener subscribes, so a mid-backfill event is at worst double-applied, never missed (both
  * paths upsert by id). Non-blocking: a failure is logged, not thrown, so the service still
- * starts and keeps consuming Kafka.
+ * starts and keeps consuming Kafka. {@code catalog.backfill.enabled=false} turns it off.
  */
 @Component
+@ConditionalOnProperty(prefix = "catalog.backfill", name = "enabled", havingValue = "true", matchIfMissing = true)
 public class CatalogBackfillRunner implements ApplicationRunner {
 
     private static final Logger logger = LoggerFactory.getLogger(CatalogBackfillRunner.class);
-    private static final int PAGE_SIZE = 100;
+
+    /** catalog-service caps {@code size} at 100. */
+    static final int PAGE_SIZE = 100;
 
     private final MovieSearchRepository repository;
     private final RestClient catalogRestClient;
@@ -51,20 +54,20 @@ public class CatalogBackfillRunner implements ApplicationRunner {
 
         logger.info("movies_search is empty — backfilling from catalog-service...");
         try {
-            int skip = 0;
             int totalIndexed = 0;
-            List<MovieEventPayload> page;
+            int totalPages = 1;
 
-            do {
-                page = fetchPage(skip);
-                List<String> embeddingTexts = page.stream().map(EmbeddingTextBuilder::forPayload).toList();
+            for (int number = 0; number < totalPages; number++) {
+                CatalogPage page = fetchPage(number);
+                totalPages = page.page().totalPages();
+                List<MovieEventPayload> movies = page.content();
+                List<String> embeddingTexts = movies.stream().map(EmbeddingTextBuilder::forPayload).toList();
                 List<List<Double>> embeddings = embeddingService.embedDocuments(embeddingTexts);
-                for (int i = 0; i < page.size(); i++) {
-                    save(page.get(i), embeddings.get(i));
+                for (int i = 0; i < movies.size(); i++) {
+                    save(movies.get(i), embeddings.get(i));
                     totalIndexed++;
                 }
-                skip += PAGE_SIZE;
-            } while (page.size() == PAGE_SIZE);
+            }
 
             logger.info("Backfill complete: indexed {} movies from catalog-service", totalIndexed);
         } catch (Exception e) {
@@ -75,16 +78,22 @@ public class CatalogBackfillRunner implements ApplicationRunner {
         }
     }
 
-    private List<MovieEventPayload> fetchPage(int skip) {
-        List<MovieEventPayload> page = catalogRestClient.get()
+    private CatalogPage fetchPage(int number) {
+        CatalogPage page = catalogRestClient.get()
                 .uri(uriBuilder -> uriBuilder.path("/api/movies")
-                        .queryParam("limit", PAGE_SIZE)
-                        .queryParam("skip", skip)
+                        .queryParam("page", number)
+                        .queryParam("size", PAGE_SIZE)
+                        // A stable order, so pages neither overlap nor skip movies. "_id", not "id":
+                        // catalog-service sorts raw Documents, so an entity property name isn't
+                        // mapped to _id and "id" would sort on a field that doesn't exist.
+                        .queryParam("sort", "_id")
                         .build())
                 .retrieve()
-                .body(new ParameterizedTypeReference<List<MovieEventPayload>>() {
-                });
-        return page != null ? page : List.of();
+                .body(CatalogPage.class);
+        if (page == null || page.page() == null) {
+            throw new IllegalStateException("catalog-service returned an empty body for page " + number);
+        }
+        return page.content() != null ? page : new CatalogPage(List.of(), page.page());
     }
 
     private void save(MovieEventPayload movie, List<Double> embedding) {

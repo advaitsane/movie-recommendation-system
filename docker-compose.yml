@@ -169,6 +169,9 @@ services:
       REDIS_HOST: redis
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       SEARCH_SERVICE_URL: http://search-service:8082
+      # Startup backfill of movie_metadata only (CatalogBackfillRunner), never the request path.
+      # It retries while catalog-service starts, so no depends_on entry is needed.
+      CATALOG_SERVICE_URL: http://catalog-service:8081
       OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://jaeger:4318/v1/traces
     depends_on: [mongo, redis, kafka]
 

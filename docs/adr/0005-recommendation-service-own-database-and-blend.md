@@ -149,4 +149,37 @@ provisioned for that test (see its Javadoc for why none of the three need to be)
   discarded. Ratings of seeded movies are stored, but without genres they add nothing to
   `genreWeights`, which is the only input to user-to-user similarity. The fix is the one search-service
   already uses: a startup backfill from catalog-service's REST API when the collection is empty
-  (ADR-0002's `CatalogBackfillRunner`). Not yet built.
+  (ADR-0002's `CatalogBackfillRunner`). Built afterwards; see the next update.
+
+## Update: the movie_metadata backfill (2026-10-08)
+
+`CatalogBackfillRunner` now fills `movie_metadata` from catalog-service's `GET /api/movies` at
+startup. It differs from search-service's runner in three ways:
+
+- **It runs whenever `movie_metadata` holds fewer movies than catalog-service reports**, not only
+  when the collection is empty. A running stack usually already has a few event-created movies, and
+  an "only when empty" check would skip the backfill on exactly those stacks. When the counts match,
+  it stops after one request.
+- **It inserts missing movies only.** Each movie is a bulk upsert with `$setOnInsert`, so a
+  document the Kafka consumer has written, or writes during the scan, is never overwritten by the
+  older REST snapshot. A backfilled document has no `lastEventAt`, so any later event still applies.
+- **It runs on its own thread and retries the first page** (10 attempts, 6 s apart) while
+  catalog-service starts, so it neither delays startup nor needs a compose `depends_on`.
+
+Pages are requested with `sort=_id`. catalog-service sorts raw documents, so `sort=id` silently
+sorts on a field that doesn't exist. The first live run used `sort=id`: pages overlapped and only
+9,287 of about 20,285 missing movies were inserted.
+
+Known gaps: the backfill never removes a movie, so a movie whose `movie.deleted` event was missed
+stays; and a movie deleted during the scan can be re-inserted from a page fetched before the delete.
+Existing user profiles are rebuilt on the user's next rating event, not by the backfill.
+
+Evidence (compose stack, 2026-10-08):
+- First start with the fix: `movie_metadata has 9295 of catalog-service's 20293 movies` → inserted
+  10,999 in about 15 s. Afterwards every catalog id was present. One extra id remained: a test movie
+  created on 2026-09-18 and later deleted in catalog-service whose delete event never arrived.
+- A `review.created` event for a seeded movie (*Blue Sky*, 1994) built the profile
+  `{Drama: 5, Romance: 5}`, and that user's recommendations were seeded movies with source `CONTENT`.
+  Before the backfill both would have been empty.
+- `CatalogBackfillRunnerTest` covers an empty collection, an event-written movie that must not be
+  overwritten, and the skip when the counts match, against a real Mongo and a stub catalog-service.

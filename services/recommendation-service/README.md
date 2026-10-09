@@ -18,6 +18,10 @@ reads catalog-service's or search-service's databases directly.
   recommendation) and `review.created`/`rating.updated` from review-service (`RatingEventConsumer`,
   updating the per-user rating history and genre-weight profile that drives collaborative
   filtering), both idempotent by event id.
+- **Backfills at startup:** `CatalogBackfillRunner` pages through catalog-service's
+  `GET /api/movies` whenever its movie metadata holds fewer movies than catalog-service, so the
+  movies seeded from `sample_mflix` (which never produced a `movie.*` event) can be recommended.
+  It inserts only missing movies and never overwrites one already synced from Kafka.
 - **Does not do:** read catalog-service's or search-service's databases directly (see
   [ADR-0005](../../docs/adr/0005-recommendation-service-own-database-and-blend.md)) — the one
   synchronous inter-service call on the request path is to search-service's
@@ -41,6 +45,7 @@ env vars:
 | `KAFKA_BOOTSTRAP_SERVERS` | `localhost:9092` | |
 | `SERVER_PORT` | `8084` | |
 | `SEARCH_SERVICE_URL` | `http://localhost:8082` | the one synchronous inter-service call — content-based signal |
+| `CATALOG_SERVICE_URL` | `http://localhost:8081` | startup backfill of movie metadata only, never the request path |
 | `CORS_ORIGINS` | `http://localhost:3000` | |
 | `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | `http://localhost:4318/v1/traces` | trace export target (Jaeger) |
 | `LOG_LEVEL` | `INFO` | |
@@ -161,8 +166,8 @@ Full rationale lives in the monorepo's `docs/adr/`; the ones specific to this se
   standalone container catalog-service/search-service share) — see
   [How to run](#docker--docker-compose) above. Easy to `docker stop` the wrong one when testing a
   Mongo outage.
-- A stale/missing recommendation for a movie almost always means `MovieMetadataConsumer` hasn't
-  synced that movie yet (its own copy of metadata, not catalog-service's) — `popularRecommendations`
+- A stale/missing recommendation for a movie almost always means neither the startup backfill nor
+  `MovieMetadataConsumer` has synced that movie yet (its own copy of metadata, not catalog-service's) — `popularRecommendations`
   and `enrich` both silently skip a candidate with no synced metadata rather than showing a
   blank/broken entry.
 - `GET /api/recommendations/{userId}` never errors because of a downstream dependency being down —

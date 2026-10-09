@@ -72,20 +72,10 @@ services:
   # inter-service call uses a configured URL instead). A `build:` entry here with nothing to
   # build would break `docker compose up` for every service below that depended on it.
 
-  # Every service below (api-gateway + the domain services) gets an explicit `mem_limit` +
-  # `JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=65.0`. See ADR-0010 (Updates 2-3): with no container
-  # memory limit visible, each JVM's default heap sizing (`MaxRAMPercentage=25%`) was computed
-  # against the *entire* Docker Desktop VM (3.8GB) rather than its own share. Six JVMs doing that
-  # independently under real concurrent load oversubscribed the VM, and the kernel OOM-killed
-  # recommendation-service and then api-gateway (`docker inspect --format '{{.State.OOMKilled}}'`
-  # → true on both). With `mem_limit` set, the container-aware JVM sizes its heap against its own
-  # limit instead. First-pass sizing (256-384m, 70% heap) was too tight: search-service's startup
-  # went from ~15s to 81s under GC pressure with no load applied, and several services idled at
-  # 90%+ of their own limit. The limits were revised upward (below) and the heap percentage
-  # trimmed to 65% to leave more non-heap headroom (metaspace/threads/buffers for this stack's
-  # OTel+Kafka+Mongo+Springdoc dependency set). This bounds the failure mode (a service that
-  # still runs over its own limit gets killed in isolation, not at the expense of unrelated
-  # services); it does not guarantee survival under a worst-case stress test on an 8GB laptop.
+  # Every service below gets a `mem_limit` and `MaxRAMPercentage=65.0`, so each JVM sizes its heap
+  # against its own limit instead of the whole Docker VM. Without them, JVMs oversubscribed the VM
+  # under load and were OOM-killed. A service over its limit is now killed alone. See ADR-0010
+  # (Updates 2-3) for the measurements behind each limit.
   api-gateway:
     build: ./services/api-gateway
     ports: ["8080:8080"]

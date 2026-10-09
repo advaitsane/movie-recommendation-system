@@ -20,14 +20,10 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.util.UriBuilder;
 
 /**
- * The tools the model can call. Each one is a read-only call to search-service or
- * recommendation-service; the assistant never writes anything. Results are trimmed to
- * {@link MovieSummary}/{@link MovieDetails}/{@link Recommendation} before they reach the model,
- * because every field returned is paid for as input tokens.
- *
- * <p>The user id for {@link #getMyRecommendations} comes from the {@link ToolContext}, which the
- * controller fills from the gateway's {@code X-User-Id} header. It is deliberately not a tool
- * parameter: the model can't be talked into fetching another user's recommendations.
+ * The tools the model can call: read-only calls to search- and recommendation-service, trimmed
+ * before the model sees them (every field costs input tokens). The user id comes from the
+ * {@link ToolContext}, never a tool argument, so the model can't fetch another user's
+ * recommendations.
  */
 @Component
 public class MovieTools {

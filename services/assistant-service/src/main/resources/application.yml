@@ -7,7 +7,7 @@ spring:
       # `error` event. Set OPENAI_API_KEY, or spring.ai.openai.api-key in a gitignored
       # application-local.yml (activated by SPRING_PROFILES_ACTIVE=local, as in search-service).
       api-key: ${OPENAI_API_KEY:}
-      # Bounds one model call. A streamed answer with tool calls makes several in a row.
+      # Bounds one model call; an answer with tool calls makes several in a row.
       timeout: 60s
       # The OpenAI SDK's own retries on 408/429/5xx. One retry, not the SDK default of two:
       # the user is watching the stream, and a third attempt mostly adds waiting.

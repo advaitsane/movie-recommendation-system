@@ -25,8 +25,8 @@ code is written:
   the version every other service runs, so no service needs a different Boot line.
 - **OpenAI** through `spring-ai-starter-model-openai`: `gpt-6-luna` by default
   (`OPENAI_CHAT_MODEL`), `gpt-6.1-sol` kept for quality baselines. The OpenAI account already pays
-  for search-service's embeddings. Anthropic can be added later behind
-  `spring.ai.model.chat=openai|anthropic`. CI never calls a real model: the tests run against a
+  for search-service's embeddings. Another provider can be added later behind
+  `spring.ai.model.chat`. CI never calls a real model: the tests run against a
   stub of the OpenAI API (see "Implementation findings").
 - **assistant-service stays on Jackson 3**, Boot 4's default, and does not add
   `spring-boot-jackson2`. The existing services stay on Jackson 2 for now (see below).

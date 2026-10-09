@@ -25,14 +25,9 @@ import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Flux;
 
 /**
- * REST controller for the assistant's one endpoint: {@code POST /api/assistant/chat}, which
- * streams the answer as server-sent events. A stream is always the same sequence:
- * <ol>
- *   <li>{@code conversation}: the conversation id, to send with the next message;</li>
- *   <li>{@code token} events: the answer, piece by piece, as {@link TokenChunk}s;</li>
- *   <li>{@code done}, or {@code error} with a {@link StreamError} if the model call failed.</li>
- * </ol>
- * Requests rejected before the stream starts (validation, no user) get a normal 4xx from
+ * {@code POST /api/assistant/chat}: streams the answer as server-sent events, always in the order
+ * {@code conversation}, {@code token}s ({@link TokenChunk}), then {@code done} or {@code error}
+ * ({@link StreamError}). Requests rejected before the stream starts get a normal 4xx from
  * {@link GlobalExceptionHandler}.
  */
 @RestController

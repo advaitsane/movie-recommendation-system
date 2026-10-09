@@ -72,7 +72,7 @@ services:
   # inter-service call uses a configured URL instead). A `build:` entry here with nothing to
   # build would break `docker compose up` for every service below that depended on it.
 
-  # Every service below (api-gateway + the 5 domain services) gets an explicit `mem_limit` +
+  # Every service below (api-gateway + the domain services) gets an explicit `mem_limit` +
   # `JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=65.0`. See ADR-0010 (Updates 2-3): with no container
   # memory limit visible, each JVM's default heap sizing (`MaxRAMPercentage=25%`) was computed
   # against the *entire* Docker Desktop VM (3.8GB) rather than its own share. Six JVMs doing that
@@ -101,6 +101,7 @@ services:
       REVIEW_SERVICE_URL: http://review-service:8083
       RECOMMENDATION_SERVICE_URL: http://recommendation-service:8084
       USER_SERVICE_URL: http://user-service:8085
+      ASSISTANT_SERVICE_URL: http://assistant-service:8086
       # Shared with user-service via the x-jwt-secret anchor at the top of this file.
       JWT_SECRET: *jwt-secret
       # OTLP/HTTP trace export target — see docs/adr/0008. Same value in every service below.
@@ -187,6 +188,25 @@ services:
       JWT_SECRET: *jwt-secret
       OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://jaeger:4318/v1/traces
     depends_on: [postgres, kafka]
+
+  assistant-service:
+    build: ./services/assistant-service
+    ports: ["8086:8086"]
+    # No data store, no Kafka: it holds chat memory in its own heap and calls search- and
+    # recommendation-service over REST. 300m (user-service's size) measured 296MiB used after
+    # four chats: the OpenAI SDK brings okhttp and the Kotlin runtime, on top of Spring AI and
+    # springdoc. Sized like search-service instead; not load tested yet.
+    mem_limit: 384m
+    environment:
+      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=65.0
+      # The OpenAI key comes from the shell or from a gitignored application-local.yml
+      # (spring.ai.openai.api-key), activated by the local profile as in search-service. Without
+      # one the service still starts, and every answer ends in an `error` event.
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-local}
+      SEARCH_SERVICE_URL: http://search-service:8082
+      RECOMMENDATION_SERVICE_URL: http://recommendation-service:8084
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://jaeger:4318/v1/traces
 
   # ---------- Observability ----------
   jaeger:

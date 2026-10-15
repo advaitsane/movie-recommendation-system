@@ -21,7 +21,7 @@ spring:
         reasoning-effort: ${OPENAI_REASONING_EFFORT:none}
     tools:
       # Default, stated because the design depends on it: a tool that throws has its message
-      # sent back to the model as the tool result (see ToolUnavailableException), instead of
+      # sent back to the model as the tool result (see ToolCallException), instead of
       # failing the whole answer.
       throw-exception-on-error: false
       # Caps the tool calls in one answer. Each call is another round trip to the model, which

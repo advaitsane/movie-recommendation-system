@@ -13,7 +13,7 @@ import org.springframework.web.client.RestClient;
  * the chat request that triggered it (see docs/adr/0008).
  */
 @Configuration
-@EnableConfigurationProperties({DownstreamProperties.class, AssistantProperties.class})
+@EnableConfigurationProperties(DownstreamProperties.class)
 public class DownstreamClientConfig {
 
     @Bean

@@ -61,6 +61,19 @@ class MovieToolsTest {
     }
 
     @Test
+    @DisplayName("null entries in a response array are skipped")
+    void nullEntriesAreSkipped() {
+        stub.enqueueJson("/api/movies/search/abc/similar", 200, """
+                [null, {"movie":null}, {"movie":{"_id":"m1","title":"Ronin"}}]""");
+        stub.enqueueJson("/api/recommendations/user-1", 200, """
+                [null, {"movieId":"m2","title":"Heat","source":"POPULAR"}]""");
+
+        assertThat(tools.findSimilarMovies("abc")).extracting(MovieSummary::id).containsExactly("m1");
+        assertThat(tools.getMyRecommendations(new ToolContext(Map.of(MovieTools.USER_ID, "user-1"))))
+                .extracting(Recommendation::id).containsExactly("m2");
+    }
+
+    @Test
     @DisplayName("getMovieDetails keeps the first six cast members and prefers the full plot")
     void detailsTrimCastAndPreferFullPlot() {
         stub.enqueueJson("/api/movies/search/m1", 200, """
@@ -80,7 +93,7 @@ class MovieToolsTest {
         stub.enqueueJson("/api/movies/search/nope", 404, "{}");
 
         assertThatThrownBy(() -> tools.getMovieDetails("nope"))
-                .isInstanceOf(ToolUnavailableException.class)
+                .isInstanceOf(ToolCallException.class)
                 .hasMessage("Movie lookup found no movie with that id");
     }
 
@@ -90,7 +103,7 @@ class MovieToolsTest {
         stub.enqueueJson("/api/movies/search/m1/similar", 400, "{}");
 
         assertThatThrownBy(() -> tools.findSimilarMovies("m1"))
-                .isInstanceOf(ToolUnavailableException.class)
+                .isInstanceOf(ToolCallException.class)
                 .hasMessageContaining("can't answer this request (400)");
     }
 
@@ -101,7 +114,7 @@ class MovieToolsTest {
         MovieTools offline = new MovieTools(unreachable, unreachable, new AssistantProperties(20, 5));
 
         assertThatThrownBy(() -> offline.findMoviesByDescription("heist"))
-                .isInstanceOf(ToolUnavailableException.class)
+                .isInstanceOf(ToolCallException.class)
                 .hasMessage("Semantic search is unavailable right now");
     }
 
@@ -109,7 +122,7 @@ class MovieToolsTest {
     @DisplayName("getMyRecommendations without a user in the tool context makes no call")
     void recommendationsNeedAUser() {
         assertThatThrownBy(() -> tools.getMyRecommendations(new ToolContext(Map.of())))
-                .isInstanceOf(ToolUnavailableException.class)
+                .isInstanceOf(ToolCallException.class)
                 .hasMessageContaining("signed-in user");
         assertThat(stub.requests()).isEmpty();
     }

@@ -5,7 +5,9 @@ import com.movies.assistant.dto.RecommendedMovie;
 import com.movies.assistant.dto.SearchMovie;
 import com.movies.assistant.dto.SearchPage;
 import com.movies.assistant.dto.VectorHit;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -107,7 +109,7 @@ public class MovieTools {
                 .retrieve()
                 .body(SearchMovie.class));
         if (movie == null) {
-            throw new ToolUnavailableException("No movie found with id " + movieId, null);
+            throw new ToolCallException("No movie found with id " + movieId, null);
         }
         return MovieDetails.from(movie);
     }
@@ -118,7 +120,7 @@ public class MovieTools {
     public List<Recommendation> getMyRecommendations(ToolContext toolContext) {
         Object userId = toolContext.getContext().get(USER_ID);
         if (userId == null) {
-            throw new ToolUnavailableException("Personal recommendations need a signed-in user", null);
+            throw new ToolCallException("Personal recommendations need a signed-in user", null);
         }
         RecommendedMovie[] movies = call("The recommendation service", () -> recommendationRestClient.get()
                 .uri(uri -> uri.path("/api/recommendations/{userId}")
@@ -126,15 +128,21 @@ public class MovieTools {
                         .build(userId))
                 .retrieve()
                 .body(RecommendedMovie[].class));
-        return movies == null ? List.of() : List.of(movies).stream().map(Recommendation::from).toList();
+        if (movies == null) {
+            return List.of();
+        }
+        return Arrays.stream(movies)
+                .filter(Objects::nonNull)
+                .map(Recommendation::from)
+                .toList();
     }
 
     private List<MovieSummary> toSummaries(VectorHit[] hits) {
         if (hits == null) {
             return List.of();
         }
-        return List.of(hits).stream()
-                .filter(hit -> hit.movie() != null)
+        return Arrays.stream(hits)
+                .filter(hit -> hit != null && hit.movie() != null)
                 .map(hit -> MovieSummary.from(hit.movie()))
                 .toList();
     }
@@ -150,13 +158,13 @@ public class MovieTools {
         } catch (HttpClientErrorException ex) {
             logger.warn("{} rejected the request: {}", what, ex.getStatusCode());
             if (ex.getStatusCode().isSameCodeAs(HttpStatus.NOT_FOUND)) {
-                throw new ToolUnavailableException(what + " found no movie with that id", ex);
+                throw new ToolCallException(what + " found no movie with that id", ex);
             }
-            throw new ToolUnavailableException(what + " can't answer this request (" + ex.getStatusCode().value()
+            throw new ToolCallException(what + " can't answer this request (" + ex.getStatusCode().value()
                     + "); try a different tool or different arguments", ex);
         } catch (RestClientException ex) {
             logger.warn("{} call failed: {}", what, ex.getMessage());
-            throw new ToolUnavailableException(what + " is unavailable right now", ex);
+            throw new ToolCallException(what + " is unavailable right now", ex);
         }
     }
 

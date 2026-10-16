@@ -125,11 +125,11 @@ services:
       # Same mongodb-atlas-local container on the host as catalog-service (see its
       # comment above), just a different database — not the generic `mongo` service.
       MONGODB_URI: mongodb://host.docker.internal:27017/sample_mflix_search?directConnection=true
-      # Activates application-local.yml (gitignored) for per-developer overrides — e.g. a real
-      # embedding-provider API key — layered on top of application.yml. Harmless if that file
-      # doesn't exist (nothing to clone contains one): Spring just finds no profile-specific
-      # file and falls back to application.yml's defaults, same as before.
+      # The local profile only matters when running from the IDE: .dockerignore keeps the
+      # gitignored application-local.yml out of the image, so here Spring finds no profile
+      # file and uses application.yml. Secrets such as the embedding key come from the shell.
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-local}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       # Docker network service name, not localhost:8081 (which only resolves to the container itself).
       CATALOG_SERVICE_URL: http://catalog-service:8081
@@ -189,9 +189,9 @@ services:
     mem_limit: 384m
     environment:
       JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=65.0
-      # The OpenAI key comes from the shell or from a gitignored application-local.yml
-      # (spring.ai.openai.api-key), activated by the local profile as in search-service. Without
-      # one the service still starts, and every answer ends in an `error` event.
+      # The OpenAI key comes from the shell only; application-local.yml is kept out of the
+      # image (see search-service). Without one the service still starts, and every answer
+      # ends in an `error` event.
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-local}
       SEARCH_SERVICE_URL: http://search-service:8082

@@ -25,6 +25,14 @@ management:
     web:
       exposure:
         include: health,prometheus,info
+  # Readiness only checks app state by default, so a pod with Mongo down would keep getting
+  # traffic. Mongo is this service's only datastore; liveness stays app-only so an outage
+  # doesn't trigger restarts. Setting include replaces the default list, so readinessState is kept.
+  endpoint:
+    health:
+      group:
+        readiness:
+          include: readinessState,mongo
   tracing:
     sampling:
       probability: 1.0

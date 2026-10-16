@@ -58,7 +58,10 @@ class SearchServiceIntegrationTest {
 
         mockMvc.perform(get("/api/movies/search").param("q", "Integration"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content[0].title").value("Integration Test Movie"));
+                .andExpect(jsonPath("$.content[0].title").value("Integration Test Movie"))
+                // The real ObjectMapper, unlike a @WebMvcTest slice's, decides the page shape.
+                .andExpect(jsonPath("$.page.totalElements").value(1))
+                .andExpect(jsonPath("$.pageable").doesNotExist());
 
         mockMvc.perform(get("/api/movies/search/{id}", id.toHexString()))
                 .andExpect(status().isOk())

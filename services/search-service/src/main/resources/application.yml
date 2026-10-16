@@ -10,8 +10,7 @@ spring:
   jackson2:
     default-property-inclusion: non_null
   # GET /api/movies/search caps ?size= at 100 (matches catalog-service, and the bound vector
-  # search and find-similar enforce on their own limit param). serialization-mode matches
-  # catalog-service, but ObjectMapperConfig doesn't register Spring Data's module yet.
+  # search and find-similar enforce on their own limit param); pages render as {content, page}.
   data:
     web:
       pageable:

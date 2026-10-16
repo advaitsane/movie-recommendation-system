@@ -13,10 +13,9 @@ import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 /**
- * A single shared token bucket across the whole gateway — not per-route or per-client. See
- * ADR-0007 for why finer-grained, Redis-backed rate limiting (the README's original suggestion)
- * is deferred: this repo runs one gateway instance locally, so a distributed limiter would pay
- * for coordination this deployment doesn't need yet.
+ * A single shared token bucket across the whole gateway, not per route or per client. The one
+ * per-user, Redis-backed limit is on the assistant route (RequestRateLimiter in application.yml),
+ * because each chat costs OpenAI tokens. See ADR-0007 and its 2026-10-16 update.
  */
 @Component
 public class RateLimitingGlobalFilter implements GlobalFilter, Ordered {

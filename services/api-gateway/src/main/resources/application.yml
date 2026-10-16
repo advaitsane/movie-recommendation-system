@@ -1,6 +1,14 @@
 spring:
   application:
     name: api-gateway
+  # Backs the assistant route's RequestRateLimiter. Short timeouts (same as recommendation-
+  # service's cache) so a Redis outage adds at most about a second before the request goes through.
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      connect-timeout: 2000ms
+      timeout: 1000ms
   cloud:
     # Spring Cloud 2025.1.0's own compatibility-verifier hardcodes "Boot 4.0.x" as the only
     # compatible line and rejects this repo's pinned 4.1.1 on startup, even though everything
@@ -73,6 +81,16 @@ spring:
               uri: ${ASSISTANT_SERVICE_URL:http://localhost:8086}
               predicates:
                 - Path=/api/assistant/**
+              # Every chat costs OpenAI tokens, so each user gets their own Redis token bucket: 10
+              # requests a minute (6 tokens each, refilled at 1/s) with bursts of up to 5. Over the
+              # limit is a 429. If Redis is unreachable the limiter lets requests through.
+              filters:
+                - name: RequestRateLimiter
+                  args:
+                    key-resolver: "#{@userIdKeyResolver}"
+                    redis-rate-limiter.replenishRate: 1
+                    redis-rate-limiter.burstCapacity: 30
+                    redis-rate-limiter.requestedTokens: 6
 
 resilience4j:
   circuitbreaker:
@@ -108,8 +126,8 @@ resilience4j:
 jwt:
   secret: ${JWT_SECRET:}
 
-# Single shared token bucket across the whole gateway — not per-route/per-client. See ADR-0007
-# for why finer-grained (and Redis-backed, for multi-instance) rate limiting is deferred.
+# Single shared token bucket across the whole gateway, not per route or per client. The assistant
+# route also has its own per-user Redis limit (above). See ADR-0007.
 gateway:
   rate-limit:
     limit-for-period: 50

@@ -92,10 +92,13 @@ services:
       RECOMMENDATION_SERVICE_URL: http://recommendation-service:8084
       USER_SERVICE_URL: http://user-service:8085
       ASSISTANT_SERVICE_URL: http://assistant-service:8086
+      # Per-user rate limit on the assistant route.
+      REDIS_HOST: redis
       # Shared with user-service via the x-jwt-secret anchor at the top of this file.
       JWT_SECRET: *jwt-secret
       # OTLP/HTTP trace export target — see docs/adr/0008. Same value in every service below.
       OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://jaeger:4318/v1/traces
+    depends_on: [redis]
 
   # ---------- Domain services ----------
   catalog-service:

@@ -57,6 +57,12 @@
             <artifactId>resilience4j-ratelimiter</artifactId>
         </dependency>
 
+        <!-- Reactive Redis for the per-user RequestRateLimiter on the assistant route -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis-reactive</artifactId>
+        </dependency>
+
         <!-- Bean Validation for the @Validated @ConfigurationProperties records, so a bad
              gateway.rate-limit value fails startup rather than the first request. -->
         <dependency>

@@ -13,6 +13,8 @@ deliberately deferred pieces (Eureka-based discovery, config-server externalizat
 - `/api/reviews/**` -> review-service
 - `/api/recommendations/**` -> recommendation-service
 - `/api/users/**` -> user-service
+- `/api/assistant/**` -> assistant-service (requires a token: the assistant needs the
+  `X-User-Id` this gateway sets)
 
 ## Cross-cutting filters
 - **Request logging** — method/path/status/duration for every request.
@@ -25,8 +27,9 @@ deliberately deferred pieces (Eureka-based discovery, config-server externalizat
   `application-local.yml`, otherwise startup fails). A valid token forwards `X-User-Id`/`X-User-Email` headers
   downstream. Invalid/missing tokens on a protected route get a 401 before the request is
   proxied anywhere.
-- **Circuit breaker + fallback** — every route wraps the proxy call in a Resilience4j circuit
-  breaker; an unreachable/erroring downstream returns a 503 JSON body
+- **Circuit breaker + fallback** — every route except `/api/assistant/**` wraps the proxy call
+  in a Resilience4j circuit breaker (the assistant streams its answer, and the breaker's time
+  limiter would cut a healthy stream off; see ADR-0013); an unreachable/erroring downstream returns a 503 JSON body
   (`GET/POST/... /fallback/{service}`) instead of a hung request or a raw connection error.
   Verified live with a real `docker kill` on catalog-service — see
   [ADR-0011 Update 4](../../docs/adr/0011-chaos-testing.md), which also caught and fixed a real

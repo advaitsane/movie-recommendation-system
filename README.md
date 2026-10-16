@@ -26,6 +26,7 @@ behind it.
 | 8 | config-server (git-backed); Eureka left out by design | ✅ |
 | 9 | Load testing (k6) and per-container memory limits | ✅ |
 | 10 | Chaos testing and hardening | ✅ |
+| 11 | assistant-service (LLM movie assistant with tool calling, Spring AI) | ✅ |
 
 ## Why this project
 
@@ -75,6 +76,9 @@ centralized config.
                   Prometheus/Grafana · Jaeger tracing
 ```
 
+assistant-service (:8086) also sits behind the gateway. It has no data store and no Kafka: an LLM
+answers each message by calling search-service and recommendation-service over REST as tools.
+
 ## Service ownership (migrated from the monolith)
 
 | Service | Owns | Migrated from mflix | New responsibility |
@@ -84,6 +88,7 @@ centralized config.
 | **review-service** | comments and ratings (Postgres) | comment-related aggregations | Deliberately not Mongo; ADR-0003 explains the choice. Emits `review.created`/`rating.updated` through an outbox. |
 | **recommendation-service** | user rating profiles and recommendation metadata (Mongo, `sample_mflix_recsys`), cache (Redis) | `/api/movies/vector-search`, `/api/movies/find-similar-movies` | Builds a collaborative-filtering signal from Kafka events and calls search-service for the content-based (plot-embedding) signal, then blends the two. Falls back to popularity when either is unavailable. |
 | **user-service** | users, credentials, activity (Postgres) | (new) | Registration and login. Issues the JWTs that api-gateway validates on every protected route. |
+| **assistant-service** | nothing persistent (chat memory in its own heap) | (new) | A conversational movie assistant: an OpenAI model, through Spring AI, answers by calling search- and recommendation-service as read-only tools and streams the answer as server-sent events. ADR-0013. |
 
 ## Build order
 
@@ -148,6 +153,9 @@ collection:
   Mongo and Redis; builds its read models from catalog and review events.
 - [user-service](services/user-service/README.md) (:8085). Uses its own `mflix_users` database on
   the compose Postgres. It issues the JWTs that api-gateway validates.
+- [assistant-service](services/assistant-service/README.md) (:8086). Needs an OpenAI key
+  (`OPENAI_API_KEY`, or a gitignored `application-local.yml`); without one it starts, and every
+  answer ends in an `error` event.
 - [api-gateway](services/api-gateway/README.md) (:8080). The single entry point for `/api/**`:
   routes to the services above and requires a valid JWT on every route except registration,
   login and movie browsing.

@@ -64,6 +64,16 @@ spring:
                     name: userServiceCB
                     fallbackUri: forward:/fallback/users
 
+            # No CircuitBreaker filter here, unlike every route above: its TimeLimiter bounds the
+            # whole response, and a streamed answer runs well past the 4s default while it is
+            # still healthy. assistant-service reports its own failures as an `error` event in
+            # the stream instead (see ADR-0013). Not public: the assistant needs the X-User-Id
+            # this gateway sets from the JWT.
+            - id: assistant-service
+              uri: ${ASSISTANT_SERVICE_URL:http://localhost:8086}
+              predicates:
+                - Path=/api/assistant/**
+
 resilience4j:
   circuitbreaker:
     configs:

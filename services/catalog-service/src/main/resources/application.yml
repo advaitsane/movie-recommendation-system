@@ -10,6 +10,13 @@ spring:
     name: catalog-service
   jackson2:
     default-property-inclusion: non_null
+  # GET /api/movies caps ?size= at 100, and pages render as {content, page: {...}} (the stable
+  # PagedModel shape search- and recommendation-service's backfill runners parse).
+  data:
+    web:
+      pageable:
+        max-page-size: 100
+        serialization-mode: via-dto
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
 

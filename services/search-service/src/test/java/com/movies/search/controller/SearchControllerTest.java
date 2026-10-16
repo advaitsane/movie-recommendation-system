@@ -2,6 +2,8 @@ package com.movies.search.controller;
 
 import static org.hamcrest.Matchers.hasSize;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -65,6 +67,18 @@ class SearchControllerTest {
                 .andExpect(jsonPath("$.content", hasSize(1)))
                 .andExpect(jsonPath("$.content[0].title").value("Test Movie"))
                 .andExpect(jsonPath("$.content[0].year").value(2024));
+    }
+
+    @Test
+    @DisplayName("GET /api/movies/search - Should cap size at 100")
+    void testSearch_SizeCappedAt100() throws Exception {
+        when(searchService.searchMovies(any(MovieSearchQuery.class), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(testDocument)));
+
+        mockMvc.perform(get("/api/movies/search").param("q", "test").param("size", "500"))
+                .andExpect(status().isOk());
+
+        verify(searchService).searchMovies(any(MovieSearchQuery.class), argThat(pageable -> pageable.getPageSize() == 100));
     }
 
     @Test

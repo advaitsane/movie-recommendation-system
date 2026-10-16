@@ -9,6 +9,14 @@ spring:
     name: search-service
   jackson2:
     default-property-inclusion: non_null
+  # GET /api/movies/search caps ?size= at 100 (matches catalog-service, and the bound vector
+  # search and find-similar enforce on their own limit param). serialization-mode matches
+  # catalog-service, but ObjectMapperConfig doesn't register Spring Data's module yet.
+  data:
+    web:
+      pageable:
+        max-page-size: 100
+        serialization-mode: via-dto
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     consumer:

@@ -118,6 +118,18 @@ class MovieControllerTest {
                 .andExpect(jsonPath("$.content").isArray());
     }
 
+    @Test
+    @DisplayName("GET /api/movies - Should cap size at 100 and render page metadata")
+    void testGetAllMovies_SizeCappedAt100() throws Exception {
+        when(movieService.getAllMovies(any(MovieFilterQuery.class), any(Pageable.class)))
+                .thenAnswer(invocation -> new PageImpl<>(List.of(testMovie), invocation.getArgument(1), 1));
+
+        mockMvc.perform(get("/api/movies").param("size", "500"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.page.size").value(100))
+                .andExpect(jsonPath("$.page.totalElements").value(1));
+    }
+
     // ==================== GET MOVIE BY ID TESTS ====================
 
     @Test

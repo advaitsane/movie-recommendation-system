@@ -151,3 +151,31 @@ once it hits the genuinely-unreachable downstream; and a garbage token is reject
 - **`X-User-Id` downstream:** user-service now compares the forwarded header with the path `{id}`
   on the activity endpoint and returns 403 on a mismatch ([ADR-0011 Update 5](0011-chaos-testing.md)).
   The header is still optional, so a caller that bypasses the gateway is not checked.
+
+## Update (2026-10-16): per-user, Redis-backed rate limit on the assistant route
+
+The assistant route (`/api/assistant/**`, [ADR-0013](0013-assistant-service-spring-ai-openai.md))
+is the first route where one request has a direct cost: each chat calls OpenAI. The shared 50
+req/s bucket above doesn't stop a single signed-in user from looping on `POST /api/assistant/chat`.
+So that route now also has Spring Cloud Gateway's `RequestRateLimiter`, which is per user and
+backed by Redis. All the other routes are unchanged.
+
+- **Key:** `X-User-Id` (`UserIdKeyResolver`). The JWT filter sets this header from a validated token
+  and strips any client-supplied copy first. A request without it gets an empty key and is
+  rejected, so there is no shared anonymous bucket.
+- **Limit:** 10 requests a minute per user, with bursts of up to 5. Redis's limiter refills per
+  second, so a per-minute rate is written as 6 tokens per request, a refill of 1 token/s and a
+  capacity of 30. Over the limit the response is a 429 with an empty body and
+  `X-RateLimit-Remaining: 0`. This 429 is not the JSON error shape the gateway's own filters use.
+- **Why Redis now, when the Alternatives above rejected it:** that rejection applied while there
+  was one gateway instance. The K8s step will run more than one replica. An in-memory per-user
+  limiter would then give each user N times the limit, and every gateway restart would reset it.
+  Redis was already in the stack, used by recommendation-service's cache.
+- **Redis down:** the limiter fails open, so requests go through without a limit. With the 1s
+  command timeout, each assistant request takes about 1.3s longer. The gateway's
+  `/actuator/health` reports `DOWN` (Redis check), but liveness and readiness stay `UP`, so
+  probes don't pull the gateway for an outage it can absorb.
+
+Verified live: 7 rapid requests from one user gave 6 passes and then a 429, the bucket refilled
+over time, there was no Redis traffic for other routes, and the fail-open behaviour held with Redis
+stopped.

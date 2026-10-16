@@ -211,8 +211,9 @@ followed them, including three gaps that tests alone had not caught:
 checklist that came out of that work.
 
 All credentials in `docker-compose.yml` are local-development placeholders. Real secrets (such as
-an embedding-provider API key) go in a gitignored `application-local.yml`; see each service's
-README.
+an embedding-provider API key) go in a gitignored `application-local.yml` when running from the IDE;
+see each service's README. Each service's `.dockerignore` keeps that file out of its image, so
+under Docker Compose pass them from the shell instead (for example `OPENAI_API_KEY`).
 
 ## Demo
 

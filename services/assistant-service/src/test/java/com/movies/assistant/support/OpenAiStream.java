@@ -2,6 +2,7 @@ package com.movies.assistant.support;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 
 /**
  * Builds OpenAI Chat Completions streaming responses (the {@code text/event-stream} body of
@@ -21,6 +22,16 @@ public final class OpenAiStream {
         }
         chunks.add(chunk("{}", "stop"));
         return sse(chunks);
+    }
+
+    /** A text answer still being generated: no stop chunk or {@code [DONE]}, open until released. */
+    public static StubHttpServer.Response unfinished(CountDownLatch release, String... pieces) {
+        StringBuilder body = new StringBuilder("data: ").append(chunk("{\"role\":\"assistant\",\"content\":\"\"}", null))
+                .append("\n\n");
+        for (String piece : pieces) {
+            body.append("data: ").append(chunk("{\"content\":\"" + escape(piece) + "\"}", null)).append("\n\n");
+        }
+        return new StubHttpServer.Response(200, "text/event-stream", body.toString(), release);
     }
 
     /** A streamed request to call one tool with the given JSON arguments. */

@@ -6,6 +6,7 @@ import java.time.LocalDateTime;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -62,6 +63,21 @@ public class GlobalExceptionHandler {
         logger.warn("Unreadable request body: {}", ex.getMostSpecificCause().getMessage());
         return buildResponse(request, HttpStatus.BAD_REQUEST,
                 "Malformed request body: check the JSON syntax, field names and value types");
+    }
+
+    @ExceptionHandler(ConversationNotFoundException.class)
+    public ResponseEntity<ErrorResponseDto> handleConversationNotFoundException(
+            ConversationNotFoundException ex, WebRequest request) {
+        logger.warn(ex.getMessage());
+        return buildResponse(request, HttpStatus.NOT_FOUND, "Conversation not found");
+    }
+
+    /** Postgres holds chat memory. The driver's message isn't echoed: it can name hosts and SQL. */
+    @ExceptionHandler(DataAccessException.class)
+    public ResponseEntity<ErrorResponseDto> handleDataAccessException(DataAccessException ex, WebRequest request) {
+        logger.error("Chat memory database unavailable", ex);
+        return buildResponse(request, HttpStatus.SERVICE_UNAVAILABLE,
+                "The assistant is unavailable right now. Try again shortly.");
     }
 
     @ExceptionHandler(Exception.class)

@@ -150,7 +150,8 @@ Building the service (`services/assistant-service`) turned up the following.
 - **The user id is never a tool argument.** `getMyRecommendations` reads it from Spring AI's tool
   context, filled from the gateway's `X-User-Id` header. Chat memory is keyed by user and
   conversation id, so a leaked conversation id doesn't expose another user's conversation. Both
-  are covered by tests.
+  are covered by tests. (Since 2026-10-17 the conversation's owner is a column, checked on every
+  turn; see the update below.)
 - **Memory.** The container used 296MiB of a 300MiB limit after four chats (256MiB anonymous
   memory, from the cgroup's `memory.stat`). The OpenAI SDK brings okhttp and the Kotlin runtime on
   top of Spring AI and springdoc. The limit is 384MiB, as for search-service; it sat at 67% after
@@ -158,7 +159,8 @@ Building the service (`services/assistant-service`) turned up the following.
 - **Chat memory lives in the instance's heap** (Spring AI's in-memory repository, a window of 20
   messages per conversation). It is lost on restart and doesn't scale past one instance. The
   number of conversations isn't bounded, so a long-running instance grows until restarted. A
-  shared store (Redis is already in the stack) is the fix when it matters.
+  shared store (Redis is already in the stack) is the fix when it matters. (Replaced by Postgres
+  on 2026-10-17; see the update below.)
 
 Live, through api-gateway with a real login, on `gpt-6-luna` once the stack was warm:
 
@@ -187,3 +189,87 @@ tools returned. The follow-up resolved "the first one" from chat memory.
   (`Jackson2AutoConfiguration`, `JsonSerializer`), quoted above.
 - Version alignment: the `spring-ai-autoconfigure-model-*` 2.0.1 POMs depend on
   `spring-boot-autoconfigure` 4.1.1.
+
+## Update (2026-10-17): chat memory in Postgres, full transcript, owner checked per turn
+
+The in-heap memory above blocked running more than one replica (the next message can reach a pod
+without the history), lost every conversation on restart, and never freed a conversation.
+
+### How Spring AI's memory works (2.0.1, from the source)
+- `MessageChatMemoryAdvisor` wraps each `ChatClient` call. Before the model call it loads the
+  conversation's messages into the prompt and **saves the user's message**; after the stream
+  *completes* (`doOnComplete` in `ChatClientMessageAggregator`) it saves the final answer. Tool
+  calls and tool results are never saved: the memory advisor's order (+200) puts it outside the
+  `ToolCallingAdvisor` (+300), so the whole tool loop happens inside one advisor call.
+- `MessageWindowChatMemory` is the "20": **20 messages per conversation**, user and assistant
+  both counting (about 10 turns), not 20 conversations. On every save it reads the stored list,
+  appends, trims to the window (moving the cut forward to a user message) and calls
+  `ChatMemoryRepository.saveAll`, which **replaces** what is stored. Any repository behind it
+  therefore holds only the latest window; older messages are deleted.
+- Nothing bounds the number of conversations; a conversation is only removed by `clear(id)`.
+- One turn is three reads of the stored list and two full rewrites (the advisor's load, then
+  read and rewrite on each of the two saves).
+
+### Options
+
+| | Kept | Writes per turn | Expiry | Notes |
+|---|---|---|---|---|
+| Redis, Spring AI's `RedisChatMemoryRepository` | window | `saveAll` = FT.SEARCH + DEL loop, then JSON.SET per message, not atomic | TTL per message key | Needs RedisJSON and the query engine (`redis:8`, not our `redis:7`), plus Jedis and Gson next to the gateway's Lettuce |
+| Redis, custom (one key per conversation, `SET … EX`) | window | 2 `SET`s | TTL per conversation | Small, atomic, runs on `redis:7`; less durable, not queryable |
+| Postgres, Spring AI's `JdbcChatMemoryRepository` | window | delete + batch insert of the whole window, twice | none; needs a job | Schema's `conversation_id VARCHAR(36)` didn't fit the old `userId:uuid` key |
+| **Postgres, own `ChatMemory` (chosen)** | full transcript | 2 single-row inserts | retention job | ~100 lines we maintain |
+
+### Decision
+- **Postgres, own `ChatMemory`** (`PostgresChatMemory`), in a new `mflix_assistant` database with
+  a Flyway migration. Production chat systems keep the transcript as the record and build the
+  model's context from it on each request; Spring AI's repositories store the context window
+  itself (its docs separate "chat memory" from "chat history" for this reason). `add` appends one
+  row and moves `chat_conversation.last_message_at` in the same statement; `get` reads the newest
+  `assistant.chat.memory-max-messages` (still 20) and drops a leading answer, so the window
+  starts on a question, as `MessageWindowChatMemory` does. Nothing is rewritten.
+- **The conversation id is a plain UUID, and the owner is a column.** The memory key used to be
+  `userId:conversationId`, because Spring AI's memory takes one string key and knows nothing about
+  owners. Now `chat_conversation(id uuid, user_id, created_at, last_message_at)` is created by
+  the service (the client can no longer choose an id), and every turn checks
+  `id = ? AND user_id = ?` before the stream starts. Someone else's conversation and an unknown
+  id both get **404**, so a caller can't tell whether an id exists. A `conversationId` that isn't
+  a UUID gets 400.
+- **Retention: 90 days after the last message** (`assistant.chat.retention`), enforced by
+  `ConversationRetentionJob` (daily, `assistant.chat.retention-cron`), one `DELETE` that cascades
+  to the messages. It runs on every replica; the statement is idempotent, so there is no lock.
+  90 days is a common enterprise default; consumer chat products keep history until the user
+  deletes it, and OpenAI's API keeps stored responses for 30 days.
+- **No list/get/delete endpoints yet.** A new conversation is a request without
+  `conversationId`; without a past-chats UI there is nothing to list, and the retention job
+  handles cleanup. A user-facing delete comes with such a UI.
+- **A failed or cancelled answer no longer leaves its question behind** (todo 3). Because the
+  advisor saves the question before the model call and the answer only on completion, a failed
+  or cancelled stream left a lone question, and the next turn sent two in a row. The controller
+  now deletes the newest message in `onErrorResume` and `doOnCancel`, but only if it is a user
+  message with this request's text, so a completed turn is never touched. It is best effort: if
+  Postgres is what failed, the delete fails too, is logged, and the stream still ends with its
+  `error` event.
+- Readiness now includes `db`: without Postgres no conversation can start or continue. Liveness
+  stays app-only. A database error before the stream starts is a 503; Hikari's connection
+  timeout is 3s, as in review- and user-service.
+
+### Findings
+- **Cancelling an OpenAI stream waits for the next line from OpenAI.** On cancel, Spring AI
+  closes the SDK's `AsyncStreamResponse`; the SDK's `close()` then waits for the lock that its
+  reader thread holds while blocked on the next line (`BufferedReader.close` in
+  `StreamHandler`, seen in a thread dump). Against the real API the next token arrives within
+  milliseconds, so this is invisible; against a stub that holds the stream open it hung until
+  the connection closed. The cancel test ends the stub's stream 500ms after the cancel.
+  `doOnCancel` runs before the cancel travels upstream, so the cleanup isn't delayed by it.
+- Concurrent turns in the same conversation (two tabs) aren't serialized: each turn's question
+  and answer are appended in arrival order, so they can interleave. The old in-memory window had
+  the same race, with lost updates instead.
+
+### Consequences
+- assistant-service now depends on Postgres, like review- and user-service. More than one replica
+  is possible; the K8s manifests no longer need `replicas: 1` for it.
+- The transcript is kept, so a past-chats UI, an audit trail or evaluation datasets can be built
+  on it later without changing how memory works.
+- On an existing compose volume, `mflix_assistant` must be created once by hand
+  (`docker compose exec postgres createdb -U mflix mflix_assistant`); the init script only runs on
+  an empty volume.

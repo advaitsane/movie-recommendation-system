@@ -13,6 +13,8 @@ import java.util.Objects;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 /**
  * One JDK HttpServer standing in for every service assistant-service talks to: the OpenAI API,
@@ -21,7 +23,12 @@ import java.util.concurrent.CopyOnWriteArrayList;
  */
 public class StubHttpServer implements AutoCloseable {
 
-    public record Response(int status, String contentType, String body) {
+    /** With {@code holdOpenUntil}, the body is sent and the connection stays open until released. */
+    public record Response(int status, String contentType, String body, CountDownLatch holdOpenUntil) {
+
+        public Response(int status, String contentType, String body) {
+            this(status, contentType, body, null);
+        }
     }
 
     public record Recorded(String method, String path, String query, String body) {
@@ -77,9 +84,27 @@ public class StubHttpServer implements AutoCloseable {
 
         byte[] bytes = response.body().getBytes(StandardCharsets.UTF_8);
         exchange.getResponseHeaders().add("Content-Type", response.contentType());
+        if (response.holdOpenUntil() != null) {
+            // Length 0 means chunked, so the client gets the body but not its end.
+            exchange.sendResponseHeaders(response.status(), 0);
+            try (OutputStream out = exchange.getResponseBody()) {
+                out.write(bytes);
+                out.flush();
+                awaitRelease(response.holdOpenUntil());
+            }
+            return;
+        }
         exchange.sendResponseHeaders(response.status(), bytes.length);
         try (OutputStream out = exchange.getResponseBody()) {
             out.write(bytes);
+        }
+    }
+
+    private static void awaitRelease(CountDownLatch latch) {
+        try {
+            latch.await(30, TimeUnit.SECONDS);
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
         }
     }
 

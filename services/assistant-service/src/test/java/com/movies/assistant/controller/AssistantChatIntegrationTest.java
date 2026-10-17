@@ -2,21 +2,33 @@ package com.movies.assistant.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.movies.assistant.dto.ChatRequest;
 import com.movies.assistant.support.OpenAiStream;
+import com.movies.assistant.support.PostgresTestContainersConfig;
 import com.movies.assistant.support.StubHttpServer;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.ai.chat.memory.ChatMemory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.context.annotation.Import;
+import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -27,9 +39,11 @@ import tools.jackson.databind.ObjectMapper;
  * The whole request path, from the HTTP endpoint through Spring AI's ChatClient, chat memory and
  * tool calling, to the OpenAI client and the downstream services. The OpenAI API and both services
  * are a {@link StubHttpServer}: the model's replies are scripted, so these tests check what the
- * service sends and how it streams, not what a real model would say.
+ * service sends and how it streams, not what a real model would say. Chat memory is a real
+ * Postgres.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@Import(PostgresTestContainersConfig.class)
 @ActiveProfiles("test")
 @DisplayName("POST /api/assistant/chat")
 class AssistantChatIntegrationTest {
@@ -42,6 +56,12 @@ class AssistantChatIntegrationTest {
     private static final ObjectMapper json = new ObjectMapper();
 
     private final HttpClient http = HttpClient.newHttpClient();
+
+    @Autowired
+    private AssistantController controller;
+
+    @Autowired
+    private ChatMemory chatMemory;
 
     @LocalServerPort
     private int port;
@@ -185,22 +205,93 @@ class AssistantChatIntegrationTest {
     }
 
     @Test
-    @DisplayName("remembers a conversation per user and conversation id")
-    void remembersConversationPerUser() throws Exception {
+    @DisplayName("remembers a conversation and sends its history with the next message")
+    void remembersConversation() throws Exception {
         stub.enqueue(COMPLETIONS, OpenAiStream.text("Heat."));
         stub.enqueue(COMPLETIONS, OpenAiStream.text("Ronin."));
-        stub.enqueue(COMPLETIONS, OpenAiStream.text("Hello."));
 
-        List<Event> first = chat("user-1", "{\"message\":\"A heist movie\"}");
-        String conversationId = json.readTree(first.getFirst().data()).get("conversationId").asText();
+        String conversationId = conversationId(chat("user-1", "{\"message\":\"A heist movie\"}"));
         chat("user-1", "{\"message\":\"Another one\",\"conversationId\":\"" + conversationId + "\"}");
-        chat("user-2", "{\"message\":\"Hi\",\"conversationId\":\"" + conversationId + "\"}");
 
-        String secondTurn = completionRequest(1).get("messages").toString();
-        assertThat(secondTurn).contains("A heist movie", "Heat.", "Another one");
-        // Same conversation id, different user: none of user-1's conversation is sent.
-        String otherUser = completionRequest(2).get("messages").toString();
-        assertThat(otherUser).doesNotContain("A heist movie", "Heat.");
+        assertThat(completionRequest(1).get("messages").toString()).contains("A heist movie", "Heat.", "Another one");
+    }
+
+    @Test
+    @DisplayName("answers 404 for another user's conversation, without calling the model")
+    void otherUsersConversationIsNotFound() throws Exception {
+        stub.enqueue(COMPLETIONS, OpenAiStream.text("Heat."));
+        String conversationId = conversationId(chat("user-1", "{\"message\":\"A heist movie\"}"));
+
+        HttpResponse<String> response = post("user-2",
+                "{\"message\":\"Hi\",\"conversationId\":\"" + conversationId + "\"}");
+
+        assertThat(response.statusCode()).isEqualTo(404);
+        assertThat(response.body()).contains("Conversation not found");
+        assertThat(stub.requestsTo(COMPLETIONS)).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("answers 404 for a conversation id it never issued")
+    void unknownConversationIsNotFound() throws Exception {
+        HttpResponse<String> response = post("user-1",
+                "{\"message\":\"Hi\",\"conversationId\":\"" + UUID.randomUUID() + "\"}");
+
+        assertThat(response.statusCode()).isEqualTo(404);
+        assertThat(stub.requests()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("rejects a conversation id that isn't a UUID with 400")
+    void malformedConversationIdIsRejected() throws Exception {
+        HttpResponse<String> response = post("user-1", "{\"message\":\"Hi\",\"conversationId\":\"my-chat\"}");
+
+        assertThat(response.statusCode()).isEqualTo(400);
+        assertThat(response.body()).contains("conversationId must be a conversation id from an earlier response");
+    }
+
+    @Test
+    @DisplayName("forgets a question whose answer failed, so the next turn doesn't resend it")
+    void failedAnswerRemovesQuestion() throws Exception {
+        stub.enqueue(COMPLETIONS, OpenAiStream.text("Heat."));
+        stub.enqueueJson(COMPLETIONS, 500, "{\"error\":{\"message\":\"overloaded\",\"type\":\"server_error\"}}");
+        stub.enqueue(COMPLETIONS, OpenAiStream.text("Ronin."));
+
+        String conversationId = conversationId(chat("user-1", "{\"message\":\"A heist movie\"}"));
+        List<Event> failed = chat("user-1", "{\"message\":\"Lost question\",\"conversationId\":\"" + conversationId + "\"}");
+        chat("user-1", "{\"message\":\"Another one\",\"conversationId\":\"" + conversationId + "\"}");
+
+        assertThat(failed.getLast().name()).isEqualTo("error");
+        assertThat(completionRequest(2).get("messages").toString())
+                .contains("A heist movie", "Heat.", "Another one")
+                .doesNotContain("Lost question");
+    }
+
+    @Test
+    @DisplayName("forgets a question whose answer the client stopped reading")
+    void cancelledAnswerRemovesQuestion() {
+        CountDownLatch release = new CountDownLatch(1);
+        stub.enqueue(COMPLETIONS, OpenAiStream.unfinished(release, "Try "));
+
+        // Called directly to control the cancel. The OpenAI SDK's close() waits for the next
+        // streamed line, so the stub ends the stream 500ms after the cancel.
+        List<ServerSentEvent<Object>> events;
+        try {
+            events = controller.chat("user-1", new ChatRequest("A heist movie", null))
+                    .doOnNext(event -> {
+                        if ("token".equals(event.event())) {
+                            CompletableFuture.delayedExecutor(500, TimeUnit.MILLISECONDS).execute(release::countDown);
+                        }
+                    })
+                    .take(2)
+                    .collectList()
+                    .block(Duration.ofSeconds(10));
+        } finally {
+            release.countDown();
+        }
+
+        assertThat(events).extracting(ServerSentEvent::event).containsExactly("conversation", "token");
+        Object conversationId = ((Map<?, ?>) events.getFirst().data()).get("conversationId");
+        assertThat(chatMemory.get(conversationId.toString())).isEmpty();
     }
 
     @Test
@@ -220,6 +311,10 @@ class AssistantChatIntegrationTest {
 
         assertThat(response.statusCode()).isEqualTo(401);
         assertThat(stub.requests()).isEmpty();
+    }
+
+    private static String conversationId(List<Event> events) {
+        return json.readTree(events.getFirst().data()).get("conversationId").asText();
     }
 
     private List<Event> chat(String userId, String body) throws IOException, InterruptedException {

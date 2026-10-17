@@ -88,7 +88,7 @@ answers each message by calling search-service and recommendation-service over R
 | **review-service** | comments and ratings (Postgres) | comment-related aggregations | Deliberately not Mongo; ADR-0003 explains the choice. Emits `review.created`/`rating.updated` through an outbox. |
 | **recommendation-service** | user rating profiles and recommendation metadata (Mongo, `sample_mflix_recsys`), cache (Redis) | `/api/movies/vector-search`, `/api/movies/find-similar-movies` | Builds a collaborative-filtering signal from Kafka events and calls search-service for the content-based (plot-embedding) signal, then blends the two. Falls back to popularity when either is unavailable. |
 | **user-service** | users, credentials, activity (Postgres) | (new) | Registration and login. Issues the JWTs that api-gateway validates on every protected route. |
-| **assistant-service** | nothing persistent (chat memory in its own heap) | (new) | A conversational movie assistant: an OpenAI model, through Spring AI, answers by calling search- and recommendation-service as read-only tools and streams the answer as server-sent events. ADR-0013. |
+| **assistant-service** | conversations and their messages (Postgres) | (new) | A conversational movie assistant: an OpenAI model, through Spring AI, answers by calling search- and recommendation-service as read-only tools and streams the answer as server-sent events. ADR-0013. |
 
 ## Build order
 
@@ -153,7 +153,9 @@ collection:
   Mongo and Redis; builds its read models from catalog and review events.
 - [user-service](services/user-service/README.md) (:8085). Uses its own `mflix_users` database on
   the compose Postgres. It issues the JWTs that api-gateway validates.
-- [assistant-service](services/assistant-service/README.md) (:8086). Needs an OpenAI key
+- [assistant-service](services/assistant-service/README.md) (:8086). Keeps chat memory in its own
+  `mflix_assistant` database on the compose Postgres (on an older data volume, create it once:
+  `docker compose exec postgres createdb -U mflix mflix_assistant`). Needs an OpenAI key
   (`OPENAI_API_KEY`, or a gitignored `application-local.yml`); without one it starts, and every
   answer ends in an `error` event.
 - [api-gateway](services/api-gateway/README.md) (:8080). The single entry point for `/api/**`:

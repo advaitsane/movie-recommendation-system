@@ -17,6 +17,7 @@ import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 
 /**
  * Converts exceptions thrown before a stream starts into a lean {@link ErrorResponseDto}. Once
@@ -78,6 +79,16 @@ public class GlobalExceptionHandler {
         logger.error("Chat memory database unavailable", ex);
         return buildResponse(request, HttpStatus.SERVICE_UNAVAILABLE,
                 "The assistant is unavailable right now. Try again shortly.");
+    }
+
+    /**
+     * A streaming client went away (closed tab, gateway timeout): normal, and the response can't
+     * be written any more. A null body marks the request handled without writing.
+     */
+    @ExceptionHandler(AsyncRequestNotUsableException.class)
+    public ResponseEntity<Void> handleAsyncRequestNotUsableException(AsyncRequestNotUsableException ex) {
+        logger.debug("Client disconnected: {}", ex.getMessage());
+        return null;
     }
 
     @ExceptionHandler(Exception.class)

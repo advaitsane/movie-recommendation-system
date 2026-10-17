@@ -23,11 +23,15 @@ import java.util.concurrent.TimeUnit;
  */
 public class StubHttpServer implements AutoCloseable {
 
-    /** With {@code holdOpenUntil}, the body is sent and the connection stays open until released. */
-    public record Response(int status, String contentType, String body, CountDownLatch holdOpenUntil) {
+    /**
+     * With {@code holdOpenUntil}, the body is sent and the connection stays open until released;
+     * then {@code bodyAfterRelease}, if any, is sent before the connection closes.
+     */
+    public record Response(int status, String contentType, String body, CountDownLatch holdOpenUntil,
+                           String bodyAfterRelease) {
 
         public Response(int status, String contentType, String body) {
-            this(status, contentType, body, null);
+            this(status, contentType, body, null, null);
         }
     }
 
@@ -91,6 +95,11 @@ public class StubHttpServer implements AutoCloseable {
                 out.write(bytes);
                 out.flush();
                 awaitRelease(response.holdOpenUntil());
+                if (response.bodyAfterRelease() != null) {
+                    out.write(response.bodyAfterRelease().getBytes(StandardCharsets.UTF_8));
+                }
+            } catch (IOException ex) {
+                // The client may be gone by now; that is what some tests are about.
             }
             return;
         }

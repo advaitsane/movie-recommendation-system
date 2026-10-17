@@ -143,8 +143,8 @@ what the service sends and how it streams, not what a real model would say.
   prompt, tool definitions and `reasoning_effort` sent to the model, a tool call and its trimmed
   result, the user id taken from the header and not the model's arguments, a failing tool, the
   per-tool call limit, a failing model call, memory across turns, 404 for another user's or an
-  unknown conversation, the question removed after a failed or cancelled answer, and request
-  validation.
+  unknown conversation, the question removed after a failed or cancelled answer, a client
+  disconnect not logged as an error, and request validation.
 - `MovieToolsTest`: the tools on their own. Query parameters, trimming, and the message the model
   gets for a 404, a 400 and an unreachable service.
 - `PostgresChatMemoryTest`: the memory against a real Postgres (Testcontainers). The window,

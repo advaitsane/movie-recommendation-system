@@ -26,12 +26,14 @@ public final class OpenAiStream {
 
     /** A text answer still being generated: no stop chunk or {@code [DONE]}, open until released. */
     public static StubHttpServer.Response unfinished(CountDownLatch release, String... pieces) {
-        StringBuilder body = new StringBuilder("data: ").append(chunk("{\"role\":\"assistant\",\"content\":\"\"}", null))
-                .append("\n\n");
-        for (String piece : pieces) {
-            body.append("data: ").append(chunk("{\"content\":\"" + escape(piece) + "\"}", null)).append("\n\n");
-        }
-        return new StubHttpServer.Response(200, "text/event-stream", body.toString(), release);
+        return new StubHttpServer.Response(200, "text/event-stream", ROLE_CHUNK + textChunks(pieces), release, null);
+    }
+
+    /** {@code first}, then a pause until {@code release}, then the rest of the answer. */
+    public static StubHttpServer.Response paused(CountDownLatch release, String first, String... rest) {
+        String remainder = textChunks(rest) + "data: " + chunk("{}", "stop") + "\n\ndata: [DONE]\n\n";
+        return new StubHttpServer.Response(200, "text/event-stream", ROLE_CHUNK + textChunks(first), release,
+                remainder);
     }
 
     /** A streamed request to call one tool with the given JSON arguments. */
@@ -40,6 +42,17 @@ public final class OpenAiStream {
                 + "\",\"type\":\"function\",\"function\":{\"name\":\"" + toolName
                 + "\",\"arguments\":\"" + escape(argumentsJson) + "\"}}]}";
         return sse(List.of(chunk(delta, null), chunk("{}", "tool_calls")));
+    }
+
+    private static final String ROLE_CHUNK =
+            "data: " + chunk("{\"role\":\"assistant\",\"content\":\"\"}", null) + "\n\n";
+
+    private static String textChunks(String... pieces) {
+        StringBuilder body = new StringBuilder();
+        for (String piece : pieces) {
+            body.append("data: ").append(chunk("{\"content\":\"" + escape(piece) + "\"}", null)).append("\n\n");
+        }
+        return body.toString();
     }
 
     private static String chunk(String delta, String finishReason) {

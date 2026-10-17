@@ -95,7 +95,7 @@ spins up a real Mongo (`mongodb/mongodb-atlas-local`) unless `MONGODB_URI` is al
   `GET /api/movies/search/vector` and `/{id}/similar` return `503`, while text/genre/year/rating
   search and the Kafka sync path keep working unaffected — a document simply gets indexed without
   an embedding. `openAiRestClient`/`voyageRestClient`/`catalogRestClient` all carry a
-  connect/read timeout (`spring.http.client.*`) so a *hanging* (not just erroring) provider or
+  connect/read timeout (`spring.http.clients.*`) so a *hanging* (not just erroring) provider or
   catalog-service can't block a request thread indefinitely — the fail-soft `try`/`catch` alone
   only bounds a thrown exception, not how long the call takes to throw one.
 - **Kafka consumer is independently resilient:** idempotent by movie id + event `occurredAt`

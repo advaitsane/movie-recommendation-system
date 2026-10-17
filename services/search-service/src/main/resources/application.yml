@@ -27,7 +27,7 @@ spring:
   # only fails soft against a thrown exception; it doesn't bound how long the call takes to throw
   # one. read-timeout is generous since backfill sends batched (up to 100-text) embedding requests.
   http:
-    client:
+    clients:
       connect-timeout: 5s
       read-timeout: 30s
 

@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.model.ToolContext;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
@@ -39,7 +40,8 @@ public class MovieTools {
     private final RestClient recommendationRestClient;
     private final int resultLimit;
 
-    public MovieTools(RestClient searchRestClient, RestClient recommendationRestClient,
+    public MovieTools(@Qualifier("searchRestClient") RestClient searchRestClient,
+                      @Qualifier("recommendationRestClient") RestClient recommendationRestClient,
                       AssistantProperties properties) {
         this.searchRestClient = searchRestClient;
         this.recommendationRestClient = recommendationRestClient;

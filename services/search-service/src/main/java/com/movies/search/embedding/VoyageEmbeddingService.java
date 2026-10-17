@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
@@ -29,7 +30,7 @@ public class VoyageEmbeddingService implements EmbeddingService {
     private final boolean enabled;
 
     public VoyageEmbeddingService(
-            RestClient voyageRestClient,
+            @Qualifier("voyageRestClient") RestClient voyageRestClient,
             VoyageProperties properties) {
         this.voyageRestClient = voyageRestClient;
         this.model = properties.model();

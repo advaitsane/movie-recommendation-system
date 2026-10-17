@@ -2,9 +2,10 @@ package com.movies.recommendation.config;
 
 import java.time.Duration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.http.client.ClientHttpRequestFactoryBuilder;
+import org.springframework.boot.http.client.HttpClientSettings;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
 /**
@@ -19,15 +20,17 @@ public class CatalogClientConfig {
 
     @Bean
     public RestClient catalogRestClient(
-            RestClient.Builder builder, CatalogServiceProperties properties) {
-        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
-        requestFactory.setConnectTimeout(Duration.ofMillis(properties.connectTimeoutMs()));
-        requestFactory.setReadTimeout(Duration.ofMillis(properties.readTimeoutMs()));
+            RestClient.Builder builder,
+            ClientHttpRequestFactoryBuilder<?> requestFactoryBuilder,
+            HttpClientSettings httpClientSettings,
+            CatalogServiceProperties properties) {
+        HttpClientSettings settings = httpClientSettings.withTimeouts(
+                Duration.ofMillis(properties.connectTimeoutMs()), Duration.ofMillis(properties.readTimeoutMs()));
 
         // Same reason as SearchClientConfig: the managed builder carries the trace-propagating
         // customizer (see docs/adr/0008).
         return builder.baseUrl(properties.url())
-                .requestFactory(requestFactory)
+                .requestFactory(requestFactoryBuilder.build(settings))
                 .build();
     }
 }

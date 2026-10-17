@@ -2,9 +2,10 @@ package com.movies.assistant.config;
 
 import java.time.Duration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.http.client.ClientHttpRequestFactoryBuilder;
+import org.springframework.boot.http.client.HttpClientSettings;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
 /**
@@ -17,25 +18,25 @@ import org.springframework.web.client.RestClient;
 public class DownstreamClientConfig {
 
     @Bean
-    public RestClient searchRestClient(RestClient.Builder builder, DownstreamProperties properties) {
+    public RestClient searchRestClient(RestClient.Builder builder, ClientHttpRequestFactoryBuilder<?> requestFactoryBuilder,
+            HttpClientSettings httpClientSettings, DownstreamProperties properties) {
         return builder.clone()
                 .baseUrl(properties.searchServiceUrl())
-                .requestFactory(requestFactory(properties))
+                .requestFactory(requestFactoryBuilder.build(timeouts(httpClientSettings, properties)))
                 .build();
     }
 
     @Bean
-    public RestClient recommendationRestClient(RestClient.Builder builder, DownstreamProperties properties) {
+    public RestClient recommendationRestClient(RestClient.Builder builder, ClientHttpRequestFactoryBuilder<?> requestFactoryBuilder,
+            HttpClientSettings httpClientSettings, DownstreamProperties properties) {
         return builder.clone()
                 .baseUrl(properties.recommendationServiceUrl())
-                .requestFactory(requestFactory(properties))
+                .requestFactory(requestFactoryBuilder.build(timeouts(httpClientSettings, properties)))
                 .build();
     }
 
-    private static SimpleClientHttpRequestFactory requestFactory(DownstreamProperties properties) {
-        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
-        requestFactory.setConnectTimeout(Duration.ofMillis(properties.connectTimeoutMs()));
-        requestFactory.setReadTimeout(Duration.ofMillis(properties.readTimeoutMs()));
-        return requestFactory;
+    private static HttpClientSettings timeouts(HttpClientSettings httpClientSettings, DownstreamProperties properties) {
+        return httpClientSettings.withTimeouts(
+                Duration.ofMillis(properties.connectTimeoutMs()), Duration.ofMillis(properties.readTimeoutMs()));
     }
 }

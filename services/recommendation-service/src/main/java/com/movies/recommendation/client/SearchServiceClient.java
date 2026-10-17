@@ -4,6 +4,7 @@ import com.movies.recommendation.dto.SearchSimilarResult;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
@@ -20,7 +21,7 @@ public class SearchServiceClient {
 
     private final RestClient searchRestClient;
 
-    public SearchServiceClient(RestClient searchRestClient) {
+    public SearchServiceClient(@Qualifier("searchRestClient") RestClient searchRestClient) {
         this.searchRestClient = searchRestClient;
     }
 

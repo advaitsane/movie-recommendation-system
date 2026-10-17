@@ -9,6 +9,3 @@
 
 ## How to verify
 <!-- Commands a reviewer can run, and what they should see. -->
-
-## What's next
-<!-- What the following PR builds on top of this one. -->

@@ -1,16 +1,16 @@
 package com.movies.assistant.config;
 
+import com.movies.assistant.memory.PostgresChatMemory;
 import com.movies.assistant.tools.MovieTools;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
-import org.springframework.ai.chat.memory.ChatMemoryRepository;
-import org.springframework.ai.chat.memory.MessageWindowChatMemory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.Resource;
+import org.springframework.jdbc.core.simple.JdbcClient;
 
 /**
  * The one {@link ChatClient} the assistant uses: the system prompt, the movie tools and chat
@@ -21,17 +21,10 @@ import org.springframework.core.io.Resource;
 @EnableConfigurationProperties(AssistantProperties.class)
 public class ChatClientConfig {
 
-    /**
-     * Replaces Spring AI's auto-configured ChatMemory (a 20-message window) to make the window
-     * size a property. The repository is still the auto-configured in-memory one: conversations
-     * live in this instance's heap and are lost on restart (see docs/adr/0013).
-     */
+    /** Replaces Spring AI's in-heap ChatMemory with Postgres (see docs/adr/0013). */
     @Bean
-    public ChatMemory chatMemory(ChatMemoryRepository chatMemoryRepository, AssistantProperties properties) {
-        return MessageWindowChatMemory.builder()
-                .chatMemoryRepository(chatMemoryRepository)
-                .maxMessages(properties.memoryMaxMessages())
-                .build();
+    public ChatMemory chatMemory(JdbcClient jdbcClient, AssistantProperties properties) {
+        return new PostgresChatMemory(jdbcClient, properties.memoryMaxMessages());
     }
 
     @Bean

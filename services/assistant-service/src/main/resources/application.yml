@@ -1,6 +1,14 @@
 spring:
   application:
     name: assistant-service
+  # Chat memory. POSTGRES_URL comes from docker-compose; the default is a local Postgres.
+  datasource:
+    url: ${POSTGRES_URL:jdbc:postgresql://localhost:5432/mflix_assistant}
+    username: ${POSTGRES_USER:mflix}
+    password: ${POSTGRES_PASSWORD:mflix}
+    hikari:
+      # Not Hikari's 30s default (ADR-0011 Update 5): with Postgres down, a chat gets 503 in 3s.
+      connection-timeout: 3000
   # The tool clients (DownstreamClientConfig) use the JDK HttpClient, like search- and
   # recommendation-service. Without this Boot would pick Reactor Netty, which the OpenAI starter
   # pulls in (via spring-boot-starter-webclient). Timeouts are per client, under assistant.downstream.
@@ -58,6 +66,13 @@ management:
     web:
       exposure:
         include: health,prometheus,info
+  # No conversation works without Postgres, so it gates readiness. Liveness stays app-only so an
+  # outage doesn't restart pods. include replaces the default list, so readinessState is kept.
+  endpoint:
+    health:
+      group:
+        readiness:
+          include: readinessState,db
   tracing:
     sampling:
       probability: 1.0
@@ -85,9 +100,12 @@ assistant:
     # search-service degrades that service's answer instead of failing this tool call.
     read-timeout-ms: 6000
   chat:
-    # Past messages of one conversation resent to the model on each turn (user and assistant
-    # messages both count).
+    # Messages resent to the model each turn (questions and answers both count, ~10 turns). All
+    # messages are stored; this only bounds what the model gets.
     memory-max-messages: 20
+    # Conversations idle this long are deleted, daily at 03:30 server time.
+    retention: 90d
+    retention-cron: "0 30 3 * * *"
     # Movies one tool call returns to the model.
     tool-result-limit: 8
 

@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.movies.assistant.config.AssistantProperties;
 import com.movies.assistant.support.StubHttpServer;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
@@ -28,7 +29,7 @@ class MovieToolsTest {
     void setUp() throws Exception {
         stub = new StubHttpServer();
         RestClient client = RestClient.builder().baseUrl(stub.url()).build();
-        tools = new MovieTools(client, client, new AssistantProperties(20, 5));
+        tools = new MovieTools(client, client, new AssistantProperties(20, 5, Duration.ofDays(90)));
     }
 
     @AfterEach
@@ -111,7 +112,7 @@ class MovieToolsTest {
     @DisplayName("an unreachable service is reported as unavailable, without the underlying error")
     void unreachableServiceIsUnavailable() {
         RestClient unreachable = RestClient.builder().baseUrl("http://localhost:1").build();
-        MovieTools offline = new MovieTools(unreachable, unreachable, new AssistantProperties(20, 5));
+        MovieTools offline = new MovieTools(unreachable, unreachable, new AssistantProperties(20, 5, Duration.ofDays(90)));
 
         assertThatThrownBy(() -> offline.findMoviesByDescription("heist"))
                 .isInstanceOf(ToolCallException.class)

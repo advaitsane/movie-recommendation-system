@@ -7,6 +7,7 @@ import java.time.Duration;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -54,7 +55,7 @@ public class CatalogBackfillRunner implements ApplicationRunner {
     public CatalogBackfillRunner(
             MovieMetadataRepository repository,
             MongoTemplate mongoTemplate,
-            RestClient catalogRestClient) {
+            @Qualifier("catalogRestClient") RestClient catalogRestClient) {
         this.repository = repository;
         this.mongoTemplate = mongoTemplate;
         this.catalogRestClient = catalogRestClient;

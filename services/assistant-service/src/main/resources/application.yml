@@ -1,6 +1,13 @@
 spring:
   application:
     name: assistant-service
+  # The tool clients (DownstreamClientConfig) use the JDK HttpClient, like search- and
+  # recommendation-service. Without this Boot would pick Reactor Netty, which the OpenAI starter
+  # pulls in (via spring-boot-starter-webclient). Timeouts are per client, under assistant.downstream.
+  http:
+    clients:
+      imperative:
+        factory: jdk
   ai:
     openai:
       # Empty by default so the service starts without a key; every answer then ends in an

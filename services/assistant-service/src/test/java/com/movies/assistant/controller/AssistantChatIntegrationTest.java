@@ -3,14 +3,19 @@ package com.movies.assistant.controller;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.movies.assistant.dto.ChatRequest;
+import com.movies.assistant.exception.GlobalExceptionHandler;
 import com.movies.assistant.support.OpenAiStream;
 import com.movies.assistant.support.PostgresTestContainersConfig;
 import com.movies.assistant.support.StubHttpServer;
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.Socket;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -23,9 +28,14 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.logging.LogLevel;
+import org.springframework.boot.logging.LoggingSystem;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.codec.ServerSentEvent;
@@ -43,6 +53,7 @@ import tools.jackson.databind.ObjectMapper;
  * Postgres.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@ExtendWith(OutputCaptureExtension.class)
 @Import(PostgresTestContainersConfig.class)
 @ActiveProfiles("test")
 @DisplayName("POST /api/assistant/chat")
@@ -292,6 +303,44 @@ class AssistantChatIntegrationTest {
         assertThat(events).extracting(ServerSentEvent::event).containsExactly("conversation", "token");
         Object conversationId = ((Map<?, ?>) events.getFirst().data()).get("conversationId");
         assertThat(chatMemory.get(conversationId.toString())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("treats a client that disconnects mid-stream as normal, not as an error")
+    void clientDisconnectIsNotAnError(CapturedOutput output) throws Exception {
+        LoggingSystem.get(getClass().getClassLoader())
+                .setLogLevel(GlobalExceptionHandler.class.getName(), LogLevel.DEBUG);
+        CountDownLatch release = new CountDownLatch(1);
+        // After the client leaves, the model keeps streaming, as a real one does; writing those
+        // tokens to the closed connection is what fails.
+        stub.enqueue(COMPLETIONS, OpenAiStream.paused(release, "Try ", "more ".repeat(20).split("(?<= )")));
+
+        // A raw socket, so the test can close the connection after the first token.
+        String body = "{\"message\":\"A heist movie\"}";
+        try (Socket socket = new Socket("localhost", port)) {
+            socket.setSoTimeout(10_000);
+            socket.getOutputStream().write(("POST /api/assistant/chat HTTP/1.1\r\nHost: localhost\r\n"
+                    + "Content-Type: application/json\r\nAccept: text/event-stream\r\n"
+                    + AssistantController.USER_ID_HEADER + ": user-1\r\n"
+                    + "Content-Length: " + body.length() + "\r\n\r\n" + body).getBytes(StandardCharsets.UTF_8));
+            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
+            String line;
+            while ((line = in.readLine()) != null && !line.startsWith("event:token")) {
+                // skip headers and the conversation event
+            }
+        } finally {
+            release.countDown();
+        }
+
+        long deadline = System.currentTimeMillis() + 10_000;
+        while (System.currentTimeMillis() < deadline
+                && !output.getOut().contains("Client disconnected")
+                && !output.getOut().contains("Unexpected error occurred")) {
+            Thread.sleep(100);
+        }
+        assertThat(output.getOut())
+                .contains("Client disconnected")
+                .doesNotContain("Unexpected error occurred", "Failure in @ExceptionHandler");
     }
 
     @Test

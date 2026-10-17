@@ -261,6 +261,11 @@ without the history), lost every conversation on restart, and never freed a conv
   milliseconds, so this is invisible; against a stub that holds the stream open it hung until
   the connection closed. The cancel test ends the stub's stream 500ms after the cancel.
   `doOnCancel` runs before the cancel travels upstream, so the cleanup isn't delayed by it.
+- **A disconnect is noticed on the next write.** Tomcat learns that the client left only when it
+  next writes to the stream, so during the tool phase the model keeps running until its first
+  token (about 5s in the e2e run of 2026-10-17), and the unanswered question is removed then.
+  The disconnect itself (`AsyncRequestNotUsableException`) is logged at debug: it used to reach
+  the catch-all handler, which logged an ERROR and then failed writing JSON to the event stream.
 - Concurrent turns in the same conversation (two tabs) aren't serialized: each turn's question
   and answer are appended in arrival order, so they can interleave. The old in-memory window had
   the same race, with lost updates instead.

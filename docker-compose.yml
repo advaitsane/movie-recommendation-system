@@ -10,9 +10,61 @@ services:
     image: mongo:7
     # No host port published: this container is only reached by recommendation-service via
     # the compose network's `mongo:27017` DNS name. Publishing 27017 here would conflict with
-    # the separately-run mflix-mongo container, which also binds host port 27017 for
-    # catalog-service/search-service (see README "Local dev").
+    # mflix-mongo below, which binds host port 27017 for running catalog/search from the IDE.
     volumes: ["mongo-data:/data/db"]
+
+  # The movie catalog database for catalog-service and search-service. mongodb-atlas-local
+  # supports Atlas Search and vector search locally, which the generic `mongo` image doesn't.
+  # The fixed container name is what chaos/01_dependency_kill.sh stops and starts.
+  mflix-mongo:
+    image: mongodb/mongodb-atlas-local:8.3.8
+    container_name: mflix-mongo
+    ports: ["27017:27017"]
+    environment:
+      # Turns off the image's usage telemetry, whose reporter crashed the container under load
+      # (ADR-0010).
+      DO_NOT_TRACK: 1
+    # The image's own healthcheck polls every 30s, which delays everything that waits on it.
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/runner", "healthcheck"]
+      interval: 5s
+      timeout: 30s
+      start_period: 60s
+      retries: 30
+    volumes:
+      - mflix-data:/data/db
+      - mflix-configdb:/data/configdb
+
+  # One-shot jobs that load MongoDB's sample_mflix dataset into mflix-mongo on the first start.
+  # Both are no-ops once their work is done, so they run on every `docker compose up`.
+  # The ~400 MB archive is kept in a volume, so recreating mflix-data doesn't download it again.
+  mflix-download:
+    image: curlimages/curl:8.10.1
+    user: root
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        set -e
+        [ -s /dump/sampledata.archive ] && { echo "archive already downloaded"; exit 0; }
+        curl -sSfL --retry 3 -o /dump/sampledata.archive.part \
+          https://atlas-education.s3.amazonaws.com/sampledata.archive
+        mv /dump/sampledata.archive.part /dump/sampledata.archive
+    volumes: ["mflix-dump:/dump"]
+
+  mflix-seed:
+    image: mongodb/mongodb-atlas-local:8.3.8
+    entrypoint: ["bash", "-c"]
+    command:
+      - |
+        set -e
+        uri=mongodb://mflix-mongo:27017/?directConnection=true
+        count=$$(mongosh "$$uri" --quiet --eval 'db.getSiblingDB("sample_mflix").movies.estimatedDocumentCount()')
+        [ "$$count" -gt 0 ] && { echo "sample_mflix already loaded ($$count movies)"; exit 0; }
+        mongorestore --uri "$$uri" --archive=/dump/sampledata.archive --nsInclude='sample_mflix.*'
+    volumes: ["mflix-dump:/dump:ro"]
+    depends_on:
+      mflix-mongo: { condition: service_healthy }
+      mflix-download: { condition: service_completed_successfully }
 
   postgres:
     image: postgres:16
@@ -107,13 +159,13 @@ services:
     mem_limit: 288m
     environment:
       JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=65.0
-      # Points at the mongodb-atlas-local container run separately on the host
-      # (already seeded with sample_mflix), not the generic `mongo` service above.
-      # host.docker.internal lets the container reach the host's published port.
-      MONGODB_URI: mongodb://host.docker.internal:27017/sample_mflix?directConnection=true
+      # The mflix-mongo service above (seeded with sample_mflix), not the generic `mongo` one.
+      MONGODB_URI: mongodb://mflix-mongo:27017/sample_mflix?directConnection=true
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://jaeger:4318/v1/traces
-    depends_on: [kafka]
+    depends_on:
+      kafka: { condition: service_started }
+      mflix-seed: { condition: service_completed_successfully }
 
   search-service:
     build: ./services/search-service
@@ -125,9 +177,8 @@ services:
     mem_limit: 384m
     environment:
       JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=65.0
-      # Same mongodb-atlas-local container on the host as catalog-service (see its
-      # comment above), just a different database — not the generic `mongo` service.
-      MONGODB_URI: mongodb://host.docker.internal:27017/sample_mflix_search?directConnection=true
+      # Same mflix-mongo as catalog-service, just a different database.
+      MONGODB_URI: mongodb://mflix-mongo:27017/sample_mflix_search?directConnection=true
       # The local profile only matters when running from the IDE: .dockerignore keeps the
       # gitignored application-local.yml out of the image, so here Spring finds no profile
       # file and uses application.yml. Secrets such as the embedding key come from the shell.
@@ -137,7 +188,9 @@ services:
       # Docker network service name, not localhost:8081 (which only resolves to the container itself).
       CATALOG_SERVICE_URL: http://catalog-service:8081
       OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://jaeger:4318/v1/traces
-    depends_on: [kafka]
+    depends_on:
+      kafka: { condition: service_started }
+      mflix-seed: { condition: service_completed_successfully }
 
   review-service:
     build: ./services/review-service
@@ -225,3 +278,6 @@ services:
 volumes:
   mongo-data:
   postgres-data:
+  mflix-data:
+  mflix-configdb:
+  mflix-dump:

@@ -499,3 +499,19 @@ finishes (`AsyncRequestNotUsableException: ... Broken pipe` in `search-service` 
    check for this container specifically.
 5. This closes the open item from Update 4: the memory-limit fix (Update 3) is now validated at
    full stress scale on a calm host, not just via smoke tests.
+
+## Update 6 (2026-10-17): mflix-mongo moved into docker-compose
+
+This closes finding 4 of Update 5. `mflix-mongo` is now a compose service: the same
+`mongodb-atlas-local` image, pinned to `8.3.8`, with `DO_NOT_TRACK=1` and the same container name,
+so `chaos/01_dependency_kill.sh` is unchanged. catalog-service and search-service reach it as
+`mflix-mongo:27017` instead of `host.docker.internal:27017`, so `docker compose up` can no longer
+leave it stopped.
+
+Two one-shot jobs replace the manual `docker run` and `mongorestore`:
+- `mflix-download` keeps the dataset archive in a volume;
+- `mflix-seed` restores it only when `sample_mflix.movies` is empty.
+
+catalog-service and search-service wait for `mflix-seed` to complete. Every start runs both jobs,
+and both exit at once when their work is done. `make up` wraps this and waits until every
+service's `/actuator/health` is UP. See [running locally](../running-locally.md).

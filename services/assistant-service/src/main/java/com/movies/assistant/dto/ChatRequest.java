@@ -10,6 +10,7 @@ import jakarta.validation.constraints.Size;
  */
 public record ChatRequest(
         @NotBlank @Size(max = 2000) String message,
-        @Pattern(regexp = "[A-Za-z0-9-]{1,64}", message = "must be 1-64 letters, digits or dashes")
+        @Pattern(regexp = "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}",
+                message = "must be a conversation id from an earlier response")
         String conversationId) {
 }

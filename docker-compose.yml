@@ -185,11 +185,11 @@ services:
   assistant-service:
     build: ./services/assistant-service
     ports: ["8086:8086"]
-    # No data store, no Kafka: it holds chat memory in its own heap and calls search- and
-    # recommendation-service over REST. 300m (user-service's size) measured 296MiB used after
-    # four chats: the OpenAI SDK brings okhttp and the Kotlin runtime, on top of Spring AI and
-    # springdoc. Sized like search-service instead; not load tested yet.
+    # Chat memory in Postgres (mflix_assistant); no Kafka. 300m (user-service's size) measured
+    # 296MiB used after four chats: the OpenAI SDK brings okhttp and the Kotlin runtime, on top
+    # of Spring AI and springdoc. Sized like search-service instead; not load tested yet.
     mem_limit: 384m
+    depends_on: [postgres]
     environment:
       JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=65.0
       # The OpenAI key comes from the shell only; application-local.yml is kept out of the
@@ -197,6 +197,7 @@ services:
       # ends in an `error` event.
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-local}
+      POSTGRES_URL: jdbc:postgresql://postgres:5432/mflix_assistant
       SEARCH_SERVICE_URL: http://search-service:8082
       RECOMMENDATION_SERVICE_URL: http://recommendation-service:8084
       OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://jaeger:4318/v1/traces

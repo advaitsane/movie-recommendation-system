@@ -2,6 +2,7 @@ package com.movies.assistant.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.time.Duration;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -22,7 +23,8 @@ class ConfigurationPropertiesValidationTest {
                     "assistant.downstream.connect-timeout-ms=2000",
                     "assistant.downstream.read-timeout-ms=6000",
                     "assistant.chat.memory-max-messages=20",
-                    "assistant.chat.tool-result-limit=8");
+                    "assistant.chat.tool-result-limit=8",
+                    "assistant.chat.retention=90d");
 
     @EnableConfigurationProperties({DownstreamProperties.class, AssistantProperties.class})
     static class PropertiesConfig {
@@ -34,6 +36,7 @@ class ConfigurationPropertiesValidationTest {
         runner.run(context -> {
             assertThat(context).hasNotFailed();
             assertThat(context.getBean(AssistantProperties.class).toolResultLimit()).isEqualTo(8);
+            assertThat(context.getBean(AssistantProperties.class).retention()).isEqualTo(Duration.ofDays(90));
             assertThat(context.getBean(DownstreamProperties.class).readTimeoutMs()).isEqualTo(6000);
         });
     }
@@ -66,6 +69,12 @@ class ConfigurationPropertiesValidationTest {
     @DisplayName("a tool result limit above 50 fails startup")
     void toolResultLimitAboveFiftyFailsStartup() {
         assertStartupFails("assistant.chat.tool-result-limit=51", "toolResultLimit");
+    }
+
+    @Test
+    @DisplayName("a missing retention fails startup")
+    void missingRetentionFailsStartup() {
+        assertStartupFails("assistant.chat.retention=", "retention");
     }
 
     private void assertStartupFails(String override, String field) {

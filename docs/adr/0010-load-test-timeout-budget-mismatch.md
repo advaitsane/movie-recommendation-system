@@ -595,3 +595,61 @@ container id and have to be re-seeded once with `make clean && make up`.
 - first start healthy after 40s; `rs.conf()` reports set `mflix-mongo`, member `mflix-mongo:27017`;
 - after a test document was written, the container was removed and recreated with
   `--force-recreate`; it was healthy again after 15s, with the document still there.
+
+## Update 8 (2026-10-18): search-service and mflix-mongo sized from measurement
+
+Update 6 left search-service at its 448m limit during the backfill, to be rechecked. Testing the
+resumable backfill (ADR-0002 update of the same date) found that both it and `mflix-mongo` were
+still too tight.
+
+**search-service: a smaller heap, not a bigger limit.** With `MaxRAMPercentage=65` (a 291 MB heap)
+it was OOM-killed at 454 MB anon RSS, 3,300 movies into the backfill. A run without a limit, with
+Native Memory Tracking on, showed where the memory goes:
+
+| Area | MB |
+|---|---|
+| Java heap (reserved) | 291 |
+| Metaspace | 78 |
+| Code cache | 46 |
+| Symbols | 17 |
+| Class space | 13 |
+| Threads | 5 |
+| **Tracked total** | **476** |
+| Untracked native (glibc malloc), steady / peak | ~60 / ~113 |
+| **RSS, steady / peak** | **~535 / ~589** |
+
+The old generation held 37 MB of a 198 MB capacity, so the live data is about 40–50 MB. The heap
+was mostly empty and was starving everything else in the cgroup. Fix:
+- `MaxRAMPercentage=35` (about 157 MB of heap);
+- `MALLOC_ARENA_MAX=2`, which caps glibc's per-thread malloc pools, the source of the untracked
+  spikes.
+
+The limit stays 448m. Peaks since: 384 MiB over a 27-minute backfill test, and 390 MiB in a cold
+start, with no OOM kill.
+
+**mflix-mongo: 1 GiB was too small for the backfill.** It was killed by its own cgroup twice:
+- mongot at 297 MB anon RSS, while the test deleted and re-inserted all 21k search documents;
+- mongod at 405 MB anon RSS, while the backfill only inserted.
+
+mongod's WiredTiger cache is already at its 256 MB minimum (`maximum bytes configured`), and mongod
+was 365 MB resident. That leaves too little for mongot (384 MB heap cap) plus the per-index memory
+while thousands of vectors are indexed. Fix: `mem_limit: 1280m`. Lowering mongot's heap instead was
+untested and would only move the kill into mongot. Throttling the backfill would have changed code
+to work around a laptop limit.
+
+**Evidence: a cold start with both changes and the Update 7 hostname fix,** from empty Mongo
+volumes:
+- `make up` passed in 492s; the backfill took 6m05s and indexed 21,349 movies;
+- `movies_search` holds 21,349 documents, all with embeddings, equal to catalog-service's
+  `totalElements`, and the `backfill_state` marker was written;
+- peaks: search-service 390 MiB of 448, `mflix-mongo` **1,057 MiB** of 1,280 (above the old 1 GiB);
+- no restarts or OOM kills;
+- `make down` then `make up` passed in 204s. `mflix-mongo` came back healthy on its data, the seed
+  skipped ("sample_mflix already loaded"), and the backfill logged "already completed — skipping".
+
+**The budget on this host.** The memory limits now add up to about 3.65 GiB, and the containers
+without limits (Kafka, Prometheus, Grafana, Postgres, Jaeger, Redis, the app Mongo) use about
+0.5 GiB more. That's above the VM's 3.82 GiB. This works because the services don't all peak at
+once: in use, the stack is about 2.6 GiB. A first-start backfill run during a load test could
+still hit the VM-wide OOM killer. `make load` should only run after `make up` reports all services
+UP. Kubernetes (roadmap Phase 3) is where these limits become requests with real headroom.

@@ -28,8 +28,9 @@ services:
     hostname: mflix-mongo
     ports: ["27017:27017"]
     # mongod and mongot (Atlas Search, a JVM) share this limit. Unlimited, mongot grew past 600MB
-    # building the search index on first start and the VM's OOM killer took it. ADR-0010 Update 6.
-    mem_limit: 1g
+    # building the search index on first start and the VM's OOM killer took it (ADR-0010 Update 6).
+    # 1g then OOM-killed mongod during search-service's backfill (ADR-0010 Update 8).
+    mem_limit: 1280m
     # Recovers from a crash; `docker stop` (chaos/01_dependency_kill.sh) still keeps it down.
     restart: unless-stopped
     environment:
@@ -194,7 +195,12 @@ services:
     # catalog backfill (~21k movies) was OOM-killed at 378MB RSS. See ADR-0010 (Update 6).
     mem_limit: 448m
     environment:
-      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=65.0
+      # Not the 65% the other services use: measured during the backfill, live heap data is ~50MB
+      # but non-heap is ~185MB plus native malloc spikes, so a 65% heap starved the rest of the
+      # limit and the kernel killed it. MALLOC_ARENA_MAX caps glibc's per-thread pools.
+      # ADR-0010 Update 8.
+      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=35.0
+      MALLOC_ARENA_MAX: 2
       # Same mflix-mongo as catalog-service, just a different database.
       MONGODB_URI: mongodb://mflix-mongo:27017/sample_mflix_search?directConnection=true
       # The local profile only matters when running from the IDE: .dockerignore keeps the

@@ -204,3 +204,43 @@ Kafka consumer.
   complete (6457 documents present) — adding the missing movies...".
 - A cold start from empty volumes indexed all 21,349 movies, with embeddings, and wrote the
   marker. After `make down` and `make up`, the runner logged "already completed — skipping".
+
+## Update: movies saved without an embedding are repaired (2026-10-18)
+
+The previous update left one gap open. Embedding fails soft: with no API key, an outage or a 429,
+`embedDocuments` returns `null` for that text. Both writers then save the movie anyway, so keyword
+search still finds it, but vector search and find-similar don't. Nothing ever filled those vectors
+in. A first start without `OPENAI_API_KEY` wrote the backfill marker over 21k movies with no
+vectors, and they stayed that way until a Kafka event happened to touch one.
+
+**Fix: `EmbeddingRepairJob`,** a scheduled job, one minute after start and then every 15 minutes
+(`embedding.repair.*`). It covers both writers.
+- **Waits for the backfill marker,** so the two never embed at the same time.
+- **Batches of 100 in `_id` order,** over `plotEmbedding: null`, which also matches a missing
+  field. Paging by `_id` means a run always ends, even when some movies can't be embedded.
+- **Sets only `plotEmbedding`, and only if nothing changed.** The update matches the document's
+  id, a null embedding, and the title and plot the vector was made from. If a Kafka update
+  rewrote the movie in the meantime, the update matches nothing and that copy is left alone.
+- **Stops a run early when a whole batch comes back empty,** rather than sending all 214 batches
+  to a provider that's down. The next run tries again.
+- **Provider disabled:** no calls, and a warning with the count.
+- **A gauge, `search_movies_without_embedding`,** set from a count after each run, not on every
+  scrape, so Prometheus doesn't trigger a collection scan every 15 seconds. Movies with no title
+  or plot have nothing to embed and stay counted.
+
+**Not done:** an embedding made by an older model or with other dimensions isn't detected. That
+belongs with a model change, which also needs a new vector index (see "Related decision" above).
+
+**Evidence.** `EmbeddingRepairJobTest` (6 tests):
+- only the movies without a vector are embedded, and the gauge drops to zero;
+- provider disabled: no calls, and the gauge reports the gap;
+- no marker: nothing runs;
+- a batch with no embeddings stops the run after one call;
+- 100 movies with nothing to embed don't stop the run reaching a later batch;
+- a movie a Kafka update changed in the meantime isn't counted as repaired.
+
+On the local stack: `plotEmbedding` was removed from 250 movies and search-service restarted. The
+backfill skipped ("already completed"), and one minute later the job logged "250 movies have no
+embedding — repairing..." and, 20 seconds after that, "250 repaired, 0 still without an
+embedding". All 250 had 1536-dimension vectors again, every other field was byte-for-byte
+unchanged, and `search_movies_without_embedding` read 0.

@@ -105,6 +105,11 @@ catalog:
 # ${VOYAGE_API_KEY:}/${OPENAI_API_KEY:} placeholder and set the env var instead before committing.
 embedding:
   provider: ${EMBEDDING_PROVIDER:openai}
+  # EmbeddingRepairJob: embeds movies saved without a vector (a provider outage, a 429, no key
+  # at the time), once the catalog backfill has completed, then every interval.
+  repair:
+    initial-delay: ${EMBEDDING_REPAIR_INITIAL_DELAY:PT1M}
+    interval: ${EMBEDDING_REPAIR_INTERVAL:PT15M}
 
 # voyage-3.5's default output is 1024 dimensions.
 voyage:

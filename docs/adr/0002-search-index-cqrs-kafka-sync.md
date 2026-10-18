@@ -167,3 +167,40 @@ The fix exposed a test problem the bug had hidden. `SearchServiceIntegrationTest
 at startup against `localhost:8081`. With a local stack running, it now copied all 20,293 catalog
 movies into the test database, and the test's own movie was no longer the top search hit. The
 runner can now be turned off with `catalog.backfill.enabled=false`, and the test profile does so.
+
+## Update: a backfill that crashed part-way never finished (2026-10-18)
+
+Found during the one-command-start cold start (ADR-0010 Update 6). search-service was OOM-killed
+during its first-start backfill with 21,230 of 21,349 movies copied. On the next start the runner
+logged "already has 21230 documents — skipping": it inferred "done" from a non-empty
+`movies_search`. The missing 119 movies would only have arrived if a `movie.updated` event
+happened to come in for one of them. Nothing compared the copy against catalog-service. This is
+the likely cause of the off-by-two and off-by-one counts noted above and in the README.
+
+**Fix.**
+- **Done is recorded, not inferred.** After the last page the runner saves a `backfill_state`
+  document (`_id: "catalog"`, `completedAt`, `movies`). With the marker present, a start skips the
+  backfill. Without it, the backfill runs, even when `movies_search` already has documents.
+- **A rerun fills gaps only.** Every page is fetched again, but the runner looks up that page's
+  ids in `movies_search` and embeds and saves only the missing ones. A rerun repeats no embedding
+  calls, and never overwrites a copy that Kafka updated in the meantime.
+- **No resume by page number.** A movie deleted from the catalog shifts every later page, so a
+  saved page number can skip movies. Walking all 214 pages costs one id lookup each.
+
+**Limit of this fix.** "Present" means the document exists. A movie saved with
+`plotEmbedding: null` (no API key, an outage, a 429) counts as present, and the marker is written
+even if every embedding failed. Repairing those is a separate job, for both the backfill and the
+Kafka consumer.
+
+**Evidence.**
+- `CatalogBackfillRunnerTest`: an empty index is filled and the marker saved; a marker skips the
+  run; a run that fails on page 2 and then restarts adds only the missing movie, with no repeated
+  embedding call; a movie Kafka already stored isn't overwritten.
+- On the local stack, a backfill stopped at 3,300 movies resumed with "indexed 18049 movies from
+  catalog-service (3300 already present)". `movies_search` then held 21,349 documents, the same as
+  catalog-service's `totalElements`, all with embeddings, and the marker was written.
+- A real crash: `mflix-mongo` was OOM-killed (ADR-0010 Update 8) with 6,457 movies copied. The
+  runner logged the failure and wrote no marker. The next start logged "An earlier backfill didn't
+  complete (6457 documents present) — adding the missing movies...".
+- A cold start from empty volumes indexed all 21,349 movies, with embeddings, and wrote the
+  marker. After `make down` and `make up`, the runner logged "already completed — skipping".

@@ -158,8 +158,6 @@ These are known and documented, not fixed yet:
   until restarted (ADR-0011, Experiment 4).
 - **review-service: a connection lost in the middle of a transaction** is a different failure
   from pool exhaustion. Its circuit breaker doesn't cover it (ADR-0011 Update 6).
-- **catalog-service and search-service differ by one movie** (20,287 vs 20,286) after a full
-  backfill. This doesn't affect either service's results, and hasn't been investigated.
 
 ## Repo layout
 

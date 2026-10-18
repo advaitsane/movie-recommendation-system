@@ -45,7 +45,7 @@ public class CatalogBackfillRunner implements ApplicationRunner {
     /** catalog-service caps {@code size} at 100. */
     static final int PAGE_SIZE = 100;
 
-    static final String STATE_ID = "catalog";
+    public static final String STATE_ID = "catalog";
 
     private final MovieSearchRepository repository;
     private final BackfillStateRepository stateRepository;

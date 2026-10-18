@@ -111,11 +111,12 @@ answers each message by calling search-service and recommendation-service over R
 ## Quickstart
 
 Requirements: Docker (at least 4 GB for its VM), `make`, and [k6](https://k6.io) for the load and
-chaos tests.
+chaos tests. It runs on an 8 GB laptop, with little room to spare; see
+[hardware](docs/running-locally.md#hardware).
 
 ```bash
 make up      # builds and starts the whole stack; the first start loads the ~400 MB sample dataset
-make smoke   # one pass of both k6 user journeys through api-gateway
+make smoke   # warm-up, then one pass of both k6 user journeys through api-gateway
 make help    # load tests, chaos experiments, logs, teardown
 ```
 

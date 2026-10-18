@@ -3,13 +3,18 @@
 # Usage: scripts/wait-healthy.sh [timeout_seconds]
 set -uo pipefail
 
-TIMEOUT="${1:-300}"
-SERVICES=(config-server:8888 api-gateway:8080 catalog-service:8081 search-service:8082
-  review-service:8083 recommendation-service:8084 user-service:8085 assistant-service:8086)
+# A first start takes longest: search-service copies the whole catalog (~21k movies, about 6
+# minutes on a 4 GB Docker VM) before it reports UP.
+TIMEOUT="${1:-900}"
+SERVICES=(api-gateway:8080 catalog-service:8081 search-service:8082 review-service:8083
+  recommendation-service:8084 user-service:8085 assistant-service:8086)
+# config-server only runs under the `config` compose profile.
+[[ ",${COMPOSE_PROFILES:-}," == *,config,* ]] && SERVICES+=(config-server:8888)
 
 start=$(date +%s)
 pending=("${SERVICES[@]}")
 echo "waiting up to ${TIMEOUT}s for ${#pending[@]} services to report UP"
+echo "(on a first start, search-service backfills the catalog before it reports UP: ~6 minutes)"
 
 while ((${#pending[@]} > 0)); do
   still=()

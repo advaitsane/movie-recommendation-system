@@ -17,13 +17,23 @@ services:
   # supports Atlas Search and vector search locally, which the generic `mongo` image doesn't.
   # The fixed container name is what chaos/01_dependency_kill.sh stops and starts.
   mflix-mongo:
-    image: mongodb/mongodb-atlas-local:8.3.8
+    # Pinned by digest: MongoDB rebuilds and re-pushes existing tags. The 2026-10-13 rebuild of
+    # 8.3.8 (mongot 1.77.0) never starts mongot on this host; this 2026-08-31 build (mongot
+    # 1.74.1) does. ADR-0010 Update 6.
+    image: &atlas-local mongodb/mongodb-atlas-local:8.3.8@sha256:925c3d34f0c6086a4bcab28bc0d070997054291f990bb77e2a16a166385f88fa
     container_name: mflix-mongo
     ports: ["27017:27017"]
+    # mongod and mongot (Atlas Search, a JVM) share this limit. Unlimited, mongot grew past 600MB
+    # building the search index on first start and the VM's OOM killer took it. ADR-0010 Update 6.
+    mem_limit: 1g
+    # Recovers from a crash; `docker stop` (chaos/01_dependency_kill.sh) still keeps it down.
+    restart: unless-stopped
     environment:
       # Turns off the image's usage telemetry, whose reporter crashed the container under load
       # (ADR-0010).
       DO_NOT_TRACK: 1
+      # Only mongot is a JVM, so this caps its heap and leaves the rest of the limit to mongod.
+      JAVA_TOOL_OPTIONS: -Xmx384m
     # The image's own healthcheck polls every 30s, which delays everything that waits on it.
     healthcheck:
       test: ["CMD", "/usr/local/bin/runner", "healthcheck"]
@@ -52,7 +62,7 @@ services:
     volumes: ["mflix-dump:/dump"]
 
   mflix-seed:
-    image: mongodb/mongodb-atlas-local:8.3.8
+    image: *atlas-local
     entrypoint: ["bash", "-c"]
     command:
       - |
@@ -111,6 +121,9 @@ services:
   # ---------- Spring Cloud infra ----------
   config-server:
     build: ./services/config-server
+    # Off by default: no service reads from it yet, and it costs ~280MB of the Docker VM's memory.
+    # Start it with `make up-all` or `docker compose --profile config up -d`.
+    profiles: [config]
     ports: ["8888:8888"]
     # Clones config-repo/ from this project's GitHub repo at startup (main branch), so it needs
     # network access and serves only merged config, not local edits. Set CONFIG_REPO_URI to
@@ -173,8 +186,9 @@ services:
     # Highest of the domain services: vector search + embedding-provider HTTP calls and the
     # Mongo aggregation pipeline behind them showed the highest memory under load testing
     # (up to ~370MB RSS), and at 320m this service's startup measured 81s instead of the normal
-    # ~15-20s under GC pressure — bumped further after that was observed. See ADR-0010.
-    mem_limit: 384m
+    # ~15-20s under GC pressure — bumped further after that was observed. At 384m, the first-start
+    # catalog backfill (~21k movies) was OOM-killed at 378MB RSS. See ADR-0010 (Update 6).
+    mem_limit: 448m
     environment:
       JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=65.0
       # Same mflix-mongo as catalog-service, just a different database.

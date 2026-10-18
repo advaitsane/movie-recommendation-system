@@ -97,12 +97,19 @@ export const options = {
         },
       },
   summaryTrendStats: ['avg', 'min', 'med', 'max', 'p(90)', 'p(95)', 'p(99)'],
-  thresholds: {
-    http_req_failed: ['rate<0.02'],
-    http_req_duration: ['p(95)<1500', 'p(99)<3000'],
-    errors: ['rate<0.02'],
-  },
+  // A smoke run checks correctness only: a dozen requests give no meaningful percentile, and on a
+  // small host the first cold queries are slow (ADR-0010 Update 6).
+  thresholds: SMOKE
+    ? { http_req_failed: ['rate<0.02'], errors: ['rate<0.02'] }
+    : {
+        http_req_failed: ['rate<0.02'],
+        http_req_duration: ['p(95)<1500', 'p(99)<3000'],
+        errors: ['rate<0.02'],
+      },
 };
+
+// 409 (already registered, already reviewed) is an expected answer, not a failed request.
+const ACCEPT_409 = http.expectedStatuses({ min: 200, max: 299 }, 409);
 
 function checkAndRecord(res, trend, label) {
   trend.add(res.timings.duration);
@@ -146,7 +153,7 @@ export function registeredJourney() {
       const res = http.post(
         `${BASE_URL}/api/users/register`,
         JSON.stringify({ email, password, displayName: `Load VU ${__VU}` }),
-        { headers: { 'Content-Type': 'application/json' }, tags: { name: 'register' } }
+        { headers: { 'Content-Type': 'application/json' }, tags: { name: 'register' }, responseCallback: ACCEPT_409 }
       );
       registerTrend.add(res.timings.duration);
       // 201 = newly created, 409 = already exists from a prior run — both are fine to proceed.
@@ -196,7 +203,7 @@ export function registeredJourney() {
           rating: randomIntBetween(1, 5),
           reviewText: 'Load-test generated review.',
         }),
-        { ...authHeaders, tags: { name: 'post_review' } }
+        { ...authHeaders, tags: { name: 'post_review' }, responseCallback: ACCEPT_409 }
       );
       reviewTrend.add(reviewRes.timings.duration);
       // 201 = created, 409 = already reviewed this movie — both are acceptable outcomes under load.

@@ -4,6 +4,26 @@ Requirements: Docker (give its VM at least 4 GB of memory), `make`, and [k6](htt
 the load and chaos tests. JDK 25 is needed only to run a service outside a container; each service
 ships its own Maven wrapper.
 
+## Hardware
+
+The whole stack is tested on an 8 GB Intel Mac with a 4 GB Docker VM. It runs, with little room
+to spare (ADR-0010 Update 6):
+
+- **The first start takes about 10 minutes** after the images are built:
+  - `mflix-mongo` is healthy after about 2.5 minutes;
+  - the dataset restore takes about 30s;
+  - search-service's one-time copy of the catalog takes about 6 minutes.
+
+  Later starts take under a minute.
+- **Right after a cold start, the first searches are slow** (2.5–3.5s). That's close to the
+  gateway's 4s search budget, so a few get the circuit breaker's 503. `make smoke` and
+  `make load` warm up first (`make warmup`).
+- **The full load test (`make load`) is heavy for this host.** Use `make load VUS=5`, and close
+  other apps first. ADR-0010 Updates 4–5 show what an overloaded host does to the numbers.
+
+16 GB of RAM, with 6 GB or more for Docker, removes all of this. Roadmap Phase 3 moves the stack
+to Kubernetes.
+
 ## 1. Start everything
 
 ```bash
@@ -22,6 +42,9 @@ search-service use it. `DO_NOT_TRACK=1` turns off the image's usage telemetry, w
 crashed the container under load (ADR-0010).
 
 On its first start, search-service copies the catalog (about 20,000 movies) into its own index.
+
+config-server is off by default, since no service reads from it yet (ADR-0009). `make up-all`
+starts it too.
 
 `make down` stops everything and keeps the data. `make clean` also deletes the data volumes, but
 keeps the downloaded archive.
@@ -53,9 +76,9 @@ collection:
 - [api-gateway](../services/api-gateway/README.md) (:8080). The single entry point for `/api/**`:
   routes to the services above and requires a valid JWT on every route except registration,
   login and movie browsing.
-- [config-server](../services/config-server/README.md) (:8888). Serves the per-service files in
-  `services/config-server/config-repo/`, cloned from this repo's `main` branch on GitHub, so it
-  needs network access. No service reads from it yet (ADR-0009). There is no Eureka server:
+- [config-server](../services/config-server/README.md) (:8888, `make up-all` only). Serves the
+  per-service files in `services/config-server/config-repo/`, cloned from this repo's `main`
+  branch on GitHub, so it needs network access. No service reads from it yet (ADR-0009). There is no Eureka server:
   every call uses a configured URL, and `services/eureka-server` is a stub by design (ADR-0007).
 
 To run one service from the IDE instead, start only the infrastructure with
@@ -79,8 +102,8 @@ through api-gateway: anonymous browsing (catalog, keyword and vector search) and
 (register, log in, browse, review, get recommendations). With the full stack up:
 
 ```bash
-make smoke       # 2+2 VUs, one iteration: checks the script and the system end to end
-make load        # 15+15 VUs over 3 minutes
+make smoke       # warm-up, then 2+2 VUs, one iteration: checks the system end to end
+make load        # warm-up, then 15+15 VUs over 3 minutes
 make load VUS=5  # scale down on a smaller host
 ```
 

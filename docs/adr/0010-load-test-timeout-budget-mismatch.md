@@ -499,3 +499,72 @@ finishes (`AsyncRequestNotUsableException: ... Broken pipe` in `search-service` 
    check for this container specifically.
 5. This closes the open item from Update 4: the memory-limit fix (Update 3) is now validated at
    full stress scale on a calm host, not just via smoke tests.
+
+## Update 6 (2026-10-18): one-command start, and what a cold start on this host found
+
+**Change.** This closes finding 4 of Update 5. `mflix-mongo` is now a compose service, with the
+same image, `DO_NOT_TRACK=1` and the same container name, so `chaos/01_dependency_kill.sh` is
+unchanged. catalog-service and search-service reach it as `mflix-mongo:27017` instead of
+`host.docker.internal:27017`, so `docker compose up` can no longer leave it stopped. Two one-shot
+jobs replace the manual `docker run` and `mongorestore`:
+- `mflix-download` keeps the dataset archive in a volume;
+- `mflix-seed` restores it only when `sample_mflix.movies` is empty.
+
+catalog-service and search-service wait for the seed. `make up` wraps all of this and waits until
+every service's `/actuator/health` is UP. See [running locally](../running-locally.md).
+
+**Cold starts from a fresh clone found five problems before one passed.** Host: 8 GB Intel Mac,
+4 GB Docker VM.
+
+1. **A full disk.** The Mac had 174 MB free, and image export failed with a containerd I/O error.
+   Fix: removed stale containers, images and the build cache.
+2. **A re-pushed image tag.** MongoDB rebuilds and re-pushes existing tags:
+   - the 2026-08-31 build of `mongodb-atlas-local:8.3.8` ships mongot 1.74.1;
+   - the 2026-10-13 build under the same tag ships mongot 1.77.0.
+
+   On this host the newer build never starts mongot. After about 130s the image's `runner` gives
+   up pinging `localhost:27027` and exits with code 2, with or without the rest of the stack
+   running and with no OOM kill. The older build is healthy in 29s. Fix: pin by digest
+   (`8.3.8@sha256:925c…`), since a tag alone pins nothing.
+3. **A VM-wide OOM kill of mongot.** mongot, the JVM behind Atlas Search, had no limit. It grew
+   to 615 MB RSS while indexing the search-service copy, and the VM's OOM killer took it
+   (`global_oom`). `mflix-mongo` exited and search-service's backfill timed out. Fix:
+   - `mem_limit: 1g` for the container;
+   - `JAVA_TOOL_OPTIONS=-Xmx384m`, which only mongot reads (confirmed in its
+     `/proc/<pid>/environ`);
+   - `restart: unless-stopped`.
+
+   To make room, config-server (about 276 MB, no clients yet, ADR-0009) moves behind a `config`
+   compose profile (`make up-all`).
+4. **search-service OOM-killed during its first-start backfill.** At the 384m limit it was killed
+   by its own cgroup at 378 MB RSS, with 21,230 of 21,349 movies copied. Fix: 448m, covered by the
+   config-server savings. The crash also showed that the backfill never finishes a partial copy:
+   it runs only when `movies_search` is empty. That gets its own fix (ADR-0002 update).
+5. **A readiness wait shorter than the backfill.** search-service reports UP only after the
+   backfill, which takes 5m48s here. Fix: `wait-healthy.sh` waits up to 900s.
+
+**The passing run.** Images were built and the archive downloaded:
+- `mflix-mongo` was healthy 2m21s after the containers were created;
+- the seed restored 67,661 documents in 33s;
+- the backfill copied 21,349 movies in 5m48s;
+- all 7 services were UP about 9m15s after the containers were created.
+
+Peaks: `mflix-mongo` 874 MiB of 1 GiB, search-service 448 MiB of 448 MiB (at its limit but not
+killed; recheck under load). `make smoke` passes: 0% failed requests, p95 2.7s.
+`chaos/01_dependency_kill.sh mflix-mongo 20` works unchanged: only catalog and search went
+unhealthy, and everything recovered.
+
+**What stays a limit of this host.** During the backfill the Mac's load average reached 163 and
+the VM's 1 GB swap filled up. Right after a cold start the first queries are slow:
+- keyword search takes about 2.6–3.5s;
+- vector search takes 1.3–3.7s: an OpenAI embedding call plus `$vectorSearch`.
+
+Those numbers sit near the gateway's 4s search budget, so some first queries get the circuit
+breaker's 503. That is the budget doing its job, not a bug. `make smoke` and `make load` now run
+`scripts/warmup.sh` first, the warm-up Update 5 already called for.
+
+Two k6 script fixes came out of this:
+- 409 on register and review is an expected answer, not a failed request;
+- a smoke run checks correctness only, with no latency thresholds on a dozen requests.
+
+Kubernetes (roadmap Phase 3) is where this stack gets more headroom.

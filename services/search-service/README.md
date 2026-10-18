@@ -55,8 +55,8 @@ docker compose build search-service
 docker compose up -d search-service
 ```
 
-Mongo (`mflix-mongo`) runs as a standalone container outside compose and needs its own
-`docker start mflix-mongo` if it isn't already up.
+Mongo (`mflix-mongo`) is a compose service too; `docker compose up -d search-service` starts it
+and the one-time dataset seed first (see [running locally](../../docs/running-locally.md)).
 
 ### Tests
 

@@ -1,7 +1,7 @@
 # MongoDB Configuration
 # Connection URI should be provided with the MONGODB_URI environment variable.
-# Defaults to the mflix-mongo container on localhost (see the root README's
-# "Local dev"); override to point at your own local/Atlas instance instead.
+# Defaults to the mflix-mongo container on localhost (see docs/running-locally.md);
+# override to point at your own local/Atlas instance instead.
 spring:
   mongodb:
     uri: ${MONGODB_URI:mongodb://localhost:27017/sample_mflix}

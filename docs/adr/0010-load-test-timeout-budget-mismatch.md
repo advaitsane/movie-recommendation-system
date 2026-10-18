@@ -568,3 +568,30 @@ Two k6 script fixes came out of this:
 - a smoke run checks correctness only, with no latency thresholds on a dozen requests.
 
 Kubernetes (roadmap Phase 3) is where this stack gets more headroom.
+
+## Update 7 (2026-10-18): a recreated mflix-mongo never became healthy
+
+**Found** while raising `mflix-mongo`'s memory limit. Changing `mem_limit` makes compose recreate
+the container, and the new one restarted six times without becoming healthy. There was no OOM
+kill. mongod logged:
+- "Local replica set configuration document set name differs from command line set name"
+  (`b4d0fa3e1cdb` vs `701f6eb974cd`);
+- "This node is not a member of the config", then the state `REMOVED`.
+
+The image's `runner` then gave up waiting for a primary and exited.
+
+**Cause.** `mongodb-atlas-local` names its single-node replica set after the container's hostname
+and stores that name, and the member's `host:port`, in the data volume. Without a `hostname:`,
+Docker uses the container id. Any recreate (a config change, `make down` then `make up`, a new
+image) gets a new id, so the stored config no longer matches the node, and the node never takes
+it back. The Update 6 tests didn't catch this: each started from empty volumes, and
+`docker stop`/`docker start` (`chaos/01_dependency_kill.sh`) keeps the container and its id.
+
+**Fix.** `hostname: mflix-mongo` in compose, so the replica set is `mflix-mongo` with the member
+`mflix-mongo:27017` on every recreate. Volumes created before this fix are tied to the old
+container id and have to be re-seeded once with `make clean && make up`.
+
+**Evidence.** `mflix-mongo` alone in a throwaway compose project, with the fix:
+- first start healthy after 40s; `rs.conf()` reports set `mflix-mongo`, member `mflix-mongo:27017`;
+- after a test document was written, the container was removed and recreated with
+  `--force-recreate`; it was healthy again after 15s, with the document still there.

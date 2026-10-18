@@ -22,6 +22,10 @@ services:
     # 1.74.1) does. ADR-0010 Update 6.
     image: &atlas-local mongodb/mongodb-atlas-local:8.3.8@sha256:925c3d34f0c6086a4bcab28bc0d070997054291f990bb77e2a16a166385f88fa
     container_name: mflix-mongo
+    # The image names its replica set after the hostname and stores that in the data volume.
+    # Docker's default hostname is the container id, so a recreated container couldn't use its
+    # own data and never became healthy. ADR-0010 Update 7.
+    hostname: mflix-mongo
     ports: ["27017:27017"]
     # mongod and mongot (Atlas Search, a JVM) share this limit. Unlimited, mongot grew past 600MB
     # building the search index on first start and the VM's OOM killer took it. ADR-0010 Update 6.

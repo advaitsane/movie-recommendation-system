@@ -22,6 +22,8 @@ make demo
 
 ![make demo](images/demo.gif)
 
+`scripts/record-demo-gif.sh` re-records this GIF (asciinema and agg).
+
 `make demo` seeds eight fans with recognizable tastes, then walks a new user through the
 gateway:
 

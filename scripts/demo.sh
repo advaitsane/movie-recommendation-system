@@ -26,6 +26,7 @@ call() {
     ${3:+-d "$3"} -w $'\n%{http_code} %{time_total}')
   BODY=$(sed '$d' <<<"$out")
   read -r STATUS SECS < <(tail -n1 <<<"$out")
+  SECS=$(printf '%.2f' "$SECS")
 }
 
 # Prints the top recommendations, one line each, with the signal behind each one.

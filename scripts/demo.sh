@@ -118,7 +118,8 @@ if curl -sf --max-time 3 "${BASE_URL%:*}:8086/actuator/health" >/dev/null; then
     while IFS= read -r line; do
       case "$line" in
         event:*) ev="${line#event:}" ;;
-        data:*) [[ $ev == token ]] && printf '%s' "$(jq -j '.text' <<<"${line#data:}")"
+        # jq prints straight out: $(...) would drop a token's trailing newline.
+        data:*) [[ $ev == token ]] && jq -j '.text | gsub("\n"; "\n  ")' <<<"${line#data:}"
                 [[ $ev == error ]] && printf '%s(error: %s)%s' "$red" "${line#data:}" "$reset" ;;
       esac
     done

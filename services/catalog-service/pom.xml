@@ -136,6 +136,13 @@
             <artifactId>resilience4j-circuitbreaker</artifactId>
             <version>2.2.0</version>
         </dependency>
+        <!-- Exports the breaker's state and call outcomes as resilience4j_circuitbreaker_*
+             metrics (the Resilience dashboard, ADR-0008). -->
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-micrometer</artifactId>
+            <version>2.2.0</version>
+        </dependency>
     </dependencies>
 
     <build>

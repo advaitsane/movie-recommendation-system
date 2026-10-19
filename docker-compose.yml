@@ -309,8 +309,14 @@ services:
   grafana:
     image: grafana/grafana:11.0.0
     ports: ["3001:3000"]
-    # Auto-provisions the Prometheus datasource — see infra/grafana/provisioning/.
+    # Auto-provisions the Prometheus datasource and the dashboards — see infra/grafana/provisioning/.
     volumes: ["./infra/grafana/provisioning:/etc/grafana/provisioning"]
+    # Local-only: anyone who can reach port 3001 can view the dashboards without logging in (admin
+    # still needs admin/admin). Opens on the RED dashboard.
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/provisioning/dashboards/json/movies-red.json
     depends_on: [prometheus]
 
 volumes:

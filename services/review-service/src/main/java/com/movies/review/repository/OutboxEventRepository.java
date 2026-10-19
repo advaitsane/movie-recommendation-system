@@ -42,6 +42,13 @@ public class OutboxEventRepository {
                 event.getPublishAttempts());
     }
 
+    /** Reads only the partial index {@code idx_outbox_unpublished}, so it stays cheap as the table grows. */
+    public long countUnpublished() {
+        Long count = jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM outbox_events WHERE published_at IS NULL", Long.class);
+        return count != null ? count : 0;
+    }
+
     /**
      * Claims a batch of unpublished rows for this poller tick. {@code FOR UPDATE SKIP LOCKED}
      * is what makes concurrent polling (multiple review-service replicas) safe: a second

@@ -3,6 +3,9 @@ package com.movies.recommendation.config;
 import com.movies.recommendation.exception.ValidationException;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import io.github.resilience4j.micrometer.tagged.TaggedCircuitBreakerMetrics;
+import io.micrometer.core.instrument.binder.MeterBinder;
 import java.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,6 +24,9 @@ public class MongoCircuitBreakerConfig {
 
     private static final Logger logger = LoggerFactory.getLogger(MongoCircuitBreakerConfig.class);
 
+    /** Holds the breaker only so its metrics can be bound; resilience4j 2.2 binds from a registry. */
+    private final CircuitBreakerRegistry circuitBreakerRegistry = CircuitBreakerRegistry.ofDefaults();
+
     @Bean
     public CircuitBreaker mongoCircuitBreaker() {
         CircuitBreakerConfig config = CircuitBreakerConfig.custom()
@@ -32,9 +38,15 @@ public class MongoCircuitBreakerConfig {
                 .ignoreExceptions(ValidationException.class)
                 .build();
 
-        CircuitBreaker circuitBreaker = CircuitBreaker.of("mongodb", config);
+        CircuitBreaker circuitBreaker = circuitBreakerRegistry.circuitBreaker("mongodb", config);
         circuitBreaker.getEventPublisher().onStateTransition(
                 event -> logger.warn("MongoDB circuit breaker state transition: {}", event));
         return circuitBreaker;
+    }
+
+    /** State, call outcomes and rejected calls, as resilience4j_circuitbreaker_* (ADR-0008). */
+    @Bean
+    public MeterBinder circuitBreakerMetrics() {
+        return TaggedCircuitBreakerMetrics.ofCircuitBreakerRegistry(circuitBreakerRegistry);
     }
 }

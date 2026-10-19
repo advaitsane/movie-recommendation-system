@@ -214,5 +214,72 @@ property-naming mistakes above were only caught this way:
   `resilience4j_circuitbreaker_state` showed a breaker stuck `closed` under a real outage, then,
   after the fix, `CLOSED → OPEN → HALF_OPEN → CLOSED`
   ([ADR-0011 Update 4](0011-chaos-testing.md)).
-- **Dashboards:** still none provisioned. The deferral above stands: only the datasource is
-  automated, and panels are built by hand when needed.
+- **Dashboards:** none were provisioned at the time; Update 2 provisions them.
+
+## Update 2 (2026-10-19): three provisioned dashboards, and the metrics they needed
+
+**Why now.** The deferral above waited for a real incident worth pinning. Chaos testing
+(ADR-0011) and the load tests (ADR-0010) produced several, and each was diagnosed from raw
+`/actuator/prometheus` output. Three dashboards now ship as provisioning JSON in
+`infra/grafana/provisioning/dashboards/json/`:
+- **Service overview (RED):** which services are up, request rate, 5xx share, p50/p95/p99 per
+  service, the share of requests over the 4s design budget, gateway status codes and p95 per route.
+- **Resilience:** breaker state, rejected calls, failure rate and call outcomes for every breaker,
+  recommendation fallbacks by reason, gateway 503s, and the Hikari and Mongo pools.
+- **Events and JVM:** Kafka consumer lag and throughput, the review outbox backlog, listener time,
+  movies without an embedding, heap against its `MaxRAMPercentage` cap, GC share and threads.
+
+They're read-only in the UI (`allowUiUpdates: false`), so the JSON in git is the source of truth.
+Grafana allows anonymous viewing and opens on the RED dashboard. The datasource has a fixed uid
+(`prometheus`) that the dashboards refer to.
+
+**Building them found seven gaps.** Each panel was checked against live Prometheus, and these
+had nothing to show until fixed:
+
+1. **The services' own breakers exported nothing.** The datastore breakers in catalog, search,
+   review, user and recommendation-service (ADR-0011) were built outside any registry, and
+   `resilience4j-micrometer` wasn't on the classpath. Each config now creates its breaker through
+   a `CircuitBreakerRegistry` and binds it with `TaggedCircuitBreakerMetrics` (resilience4j 2.2
+   binds from a registry only).
+2. **No Kafka consumer metrics in search or recommendation-service.** Their consumer factories are
+   built by hand, to use the app's Jackson 2 `ObjectMapper` (ADR-0013), so Boot never adds its
+   `MicrometerConsumerListener`. The factories now add it themselves. The trade-off: a hand-built
+   factory skips every Boot customizer, so the next one missed would fail the same way. The Jackson
+   3 migration should drop these factories for Boot's.
+3. **No latency histograms.** p95 needs buckets. Every service now publishes fixed SLO buckets for
+   `http.server.requests` (50ms to 8s, 8 per endpoint) instead of Micrometer's ~70-bucket
+   percentile histogram, which would have multiplied the series count on a memory-bound host.
+4. **The gateway tags every proxied request `uri=UNKNOWN`.** Per-route latency comes from its
+   proxied call instead (`http.client.requests`, tagged with the route id), which got its own
+   buckets, up to the laptop budgets of ADR-0010 Update 9.
+5. **resilience4j's time-limiter metrics stay at 0 on the gateway,** even when the search route
+   times out. Spring Cloud CircuitBreaker applies the route timeout itself, and a timeout counts
+   as a `failed` call on the breaker. The dashboard shows breaker call outcomes instead.
+6. **No signal for recommendations served without one of their signals.** New counter
+   `recommendation.fallback{reason}`: `cold_start` (no ratings yet), `no_candidates` (ratings,
+   but nothing liked enough to seed from) and `search_unavailable` (search-service failed or timed
+   out). A 4xx from search isn't counted: search is up, it just has no vector for that movie. Each
+   reason is registered at startup, so a panel shows 0 rather than no data.
+7. **No outbox backlog.** New gauge `review.outbox.unpublished`, the number of rows not yet
+   relayed to Kafka. It's counted every 15s on a schedule, not on scrape, so a hung Postgres can't
+   stall Prometheus. The count goes through the Postgres breaker, so an outage can't hold the
+   scheduler thread the outbox poller also uses, and during an outage the gauge keeps its last
+   value. The partial index the poller already uses (`idx_outbox_unpublished`) serves the count.
+
+**Not covered.**
+- Container memory against `mem_limit`: there's no cAdvisor, so container limits aren't in
+  Prometheus. The JVM panel shows heap against its cap; `docker stats` covers the rest. Adding
+  cAdvisor would cost memory this host doesn't have (ADR-0010 Update 9).
+- The assistant's tokens, cost and time to first token, which belong to roadmap Phase 2 step 8.
+
+**Evidence: `make load VUS=5`** with assistant-service off and the laptop timeouts of ADR-0010
+Update 9. Every panel's query returned data. The Resilience dashboard showed the run as it
+happened:
+- search-service slowed down under paging, and the gateway's `searchServiceCB` opened and rejected
+  211 calls fast instead of letting them wait out the timeout;
+- recommendation-service kept answering 200, falling back 35 times with `search_unavailable` and
+  10 times with `no_candidates`;
+- the other routes answered 200, or 409 for repeated test data, with no rejected calls.
+
+The 16.7% failed requests in k6's summary are those rejected search calls. Peaks: `mflix-mongo`
+732 MiB of 1,280, search-service 284 of 448, api-gateway 255 of 384, Kafka 223 of 512.

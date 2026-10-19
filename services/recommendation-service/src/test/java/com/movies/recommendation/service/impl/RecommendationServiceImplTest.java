@@ -24,6 +24,7 @@ import com.movies.recommendation.repository.MovieMetadataRepository;
 import com.movies.recommendation.repository.UserProfileRepository;
 import com.movies.recommendation.repository.UserRatingRepository;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -48,6 +49,7 @@ class RecommendationServiceImplTest {
     private SearchServiceClient searchServiceClient;
     private RecommendationCache recommendationCache;
     private RecommendationServiceImpl service;
+    private final SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
 
     @BeforeEach
     void setUp() {
@@ -66,7 +68,7 @@ class RecommendationServiceImplTest {
         service = new RecommendationServiceImpl(
                 userRatingRepository, userProfileRepository, movieMetadataRepository,
                 searchServiceClient, recommendationCache, properties,
-                CircuitBreaker.ofDefaults("test-mongo-circuit-breaker"));
+                CircuitBreaker.ofDefaults("test-mongo-circuit-breaker"), meterRegistry);
 
         when(recommendationCache.get(anyString())).thenReturn(Optional.empty());
         when(userProfileRepository.findById(anyString())).thenReturn(Optional.empty());
@@ -81,6 +83,10 @@ class RecommendationServiceImplTest {
                 .id(userId + ":" + movieId)
                 .userId(userId).movieId(movieId).rating(rating)
                 .lastEventAt(lastEventAt).build();
+    }
+
+    private double fallbacks(String reason) {
+        return meterRegistry.get("recommendation.fallback").tag("reason", reason).counter().count();
     }
 
     private MovieMetadata metadata(String movieId, String title, List<String> genres) {
@@ -121,6 +127,19 @@ class RecommendationServiceImplTest {
         assertThat(result.get(0).source()).isEqualTo(RecommendationSource.POPULAR);
         assertThat(result.get(0).score()).isEqualTo(1.0);
         verify(recommendationCache).put(eq("u1"), any());
+        assertThat(fallbacks("cold_start")).isEqualTo(1);
+        assertThat(fallbacks("no_candidates")).isZero();
+    }
+
+    @Test
+    @DisplayName("a user whose ratings yield no candidate counts as a no_candidates fallback")
+    void getRecommendations_noCandidates_countsFallback() {
+        when(userRatingRepository.findByUserId("u1")).thenReturn(List.of(rating("u1", "m9", 2, Instant.now())));
+
+        service.getRecommendations("u1", 10);
+
+        assertThat(fallbacks("no_candidates")).isEqualTo(1);
+        assertThat(fallbacks("cold_start")).isZero();
     }
 
     @Test

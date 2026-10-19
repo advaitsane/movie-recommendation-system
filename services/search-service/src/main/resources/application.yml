@@ -51,6 +51,12 @@ management:
       group:
         readiness:
           include: readinessState,mongo
+  # Fixed latency buckets for p50/p95/p99 and SLO panels in Grafana: a few series per endpoint
+  # instead of Micrometer's ~70 default ones. 4s is the gateway's timeout budget (ADR-0010).
+  metrics:
+    distribution:
+      slo:
+        http.server.requests: 50ms,100ms,250ms,500ms,1s,2s,4s,8s
   tracing:
     sampling:
       probability: 1.0

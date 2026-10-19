@@ -34,6 +34,7 @@ scrape_configs:
     static_configs:
       - targets: ["user-service:8085"]
 
+  # Off by default (make assistant), so this target is down unless it runs.
   - job_name: assistant-service
     metrics_path: /actuator/prometheus
     static_configs:

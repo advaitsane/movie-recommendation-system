@@ -121,6 +121,11 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      # The image's default is a fixed 1 GiB heap, a quarter of this host's Docker VM, for a
+      # broker that carries a few events a second. Left unlimited it grew into swap and slowed
+      # every other container. See ADR-0010.
+      KAFKA_HEAP_OPTS: -Xms128m -Xmx256m
+    mem_limit: 512m
     ports: ["9092:9092", "29092:29092"]
 
   # ---------- Spring Cloud infra ----------
@@ -152,6 +157,12 @@ services:
     mem_limit: 384m
     environment:
       JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=65.0
+      # The design budget is 4s (application.yml). On an 8 GB laptop the stack swaps and a cold
+      # vector search takes 5-18s, so compose allows 10s (ADR-0010 Update 9). GATEWAY_TIMEOUT=4s
+      # restores the design budget on a bigger host.
+      GATEWAY_TIMEOUT: ${GATEWAY_TIMEOUT:-10s}
+      # A recommendation calls search-service up to three times in sequence, 3s read timeout each.
+      GATEWAY_RECOMMENDATION_TIMEOUT: ${GATEWAY_RECOMMENDATION_TIMEOUT:-12s}
       # Configured base URLs, matching every other service's inter-service call pattern
       # (e.g. search-service's CATALOG_SERVICE_URL) — NOT Eureka discovery. See ADR-0007 for
       # why: no service in this repo registers with Eureka yet, so routing through it here
@@ -261,6 +272,9 @@ services:
 
   assistant-service:
     build: ./services/assistant-service
+    # Off by default, like config-server: with it, the stack's limits overcommit a 4 GB Docker VM
+    # and the VM swaps (ADR-0010). Start it with `make assistant` or `make up-all`.
+    profiles: [assistant]
     ports: ["8086:8086"]
     # Chat memory in Postgres (mflix_assistant); no Kafka. 300m (user-service's size) measured
     # 296MiB used after four chats: the OpenAI SDK brings okhttp and the Kotlin runtime, on top

@@ -653,3 +653,55 @@ without limits (Kafka, Prometheus, Grafana, Postgres, Jaeger, Redis, the app Mon
 once: in use, the stack is about 2.6 GiB. A first-start backfill run during a load test could
 still hit the VM-wide OOM killer. `make load` should only run after `make up` reports all services
 UP. Kubernetes (roadmap Phase 3) is where these limits become requests with real headroom.
+
+## Update 9 (2026-10-19): the stack outgrew a 4 GB Docker VM; a laptop timeout budget
+
+**Finding.** Adding the Grafana dashboards (ADR-0008) meant running the full stack long enough to
+watch it, and it no longer fits this host. Host: 8 GB Intel Mac, Docker VM 3.82 GiB, Kafka capped
+at a 256 MB heap (its image default was a fixed 1 GiB).
+
+| Stack after `make up` | VM used + swap | Memory pressure, avg10 idle | Vector search p95, direct | `make smoke` failed |
+|---|---|---|---|---|
+| All 7 services | ~2.9 GB + 1.0 GB (swap full) | 13–29% | 1–19s | 67% |
+| Without assistant-service | ~3.05 GB + 0.79 GB | 0.3–2% | 1–3.3s | 33–67% |
+
+The stack needs about 3.85 GB, and dockerd, containerd and the VM's init take about 330 MB of the
+VM. The services are already sized from measurement (Updates 3 and 8) and run SerialGC, so there
+is nothing left to trim that would close the gap.
+
+**What fails is vector search, and it's paging, not the query.** A new query took 5–18s inside
+search-service: the OpenAI embedding call took 0.5–0.8s, and mongot took the rest, with about 40k
+major page faults per 20 queries. The same query repeated took 0.2–0.7s. The gateway's 4s budget
+turned the slow ones into 503s.
+
+**A second finding: the recommendation route's 6s budget covers one search call, not three.**
+A recommendation sends up to three seed movies (`MAX_SEED_MOVIES`) to search-service in
+sequence, each with a 2s connect and 3s read timeout. The 6s gateway limit set by the first
+update assumed one call. With a slow search-service, a recommendation took 6.7–9.2s, and the
+gateway answered 503 although recommendation-service was about to return its fallback. It's the
+original finding of this ADR again, through the fan-out, and it holds on any host. Not fixed
+here: the fix is an overall deadline for the search signal in recommendation-service (or
+parallel calls), which is a code change for its own PR.
+
+**Decision: keep the design budget, give this laptop its own.**
+- **assistant-service is off by default**, behind a compose profile like config-server.
+  `make assistant` adds it to a running stack, and `make up-all` starts everything.
+- **The gateway timeouts are settings.** `application.yml` keeps the design budget: 4s, and 6s
+  on the recommendation route (`GATEWAY_TIMEOUT`, `GATEWAY_RECOMMENDATION_TIMEOUT`).
+  `docker-compose.yml` sets 10s and 12s, the measured worst cases with some margin.
+  `GATEWAY_TIMEOUT=4s GATEWAY_RECOMMENDATION_TIMEOUT=6s make up` restores the design budget on a
+  bigger host.
+- **Chaos latency experiments inject 12s instead of 8s,** so the delay still exceeds the budget
+  and the breaker still trips.
+
+Rejected: a bigger Docker VM. At 5 GB it would leave macOS about 3 GB on this 8 GB host. Cutting
+limits further was rejected because Updates 3 and 8 measured what each service needs.
+
+**Consequences.** The local stack shows the design's behavior (timeouts, breakers, fallbacks)
+with laptop numbers. Latency on this host isn't evidence for the 4s budget; the RED dashboard's
+"over 4s" panel still marks the design budget, so slow requests stay visible rather than turning
+into 503s. Kubernetes (roadmap Phase 3) runs the design budget.
+
+**Evidence.** With assistant-service off and the 10s/12s settings, two `make smoke` runs in a row
+had 0% failed requests. Vector search p95 was 6.7s and then 3.5s, and recommendations p95 was
+9.2s and then 7.1s, matching three 3s read timeouts in sequence.

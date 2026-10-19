@@ -705,3 +705,45 @@ into 503s. Kubernetes (roadmap Phase 3) runs the design budget.
 **Evidence.** With assistant-service off and the 10s/12s settings, two `make smoke` runs in a row
 had 0% failed requests. Vector search p95 was 6.7s and then 3.5s, and recommendations p95 was
 9.2s and then 7.1s, matching three 3s read timeouts in sequence.
+
+## Update 10 (2026-10-19): what three fresh starts found while building the demo
+
+The demo (`make demo`, PR 3) is meant to run on fresh data, so it was tested from `make clean`.
+Earlier fresh-start tests (Update 6) checked that every service reported UP. These went one step
+further and checked what a new user actually sees, which found three problems.
+
+**1. recommendation-service's catalog copy gave up before catalog-service was up.** On a first
+start catalog-service waits for the `sample_mflix` restore, while recommendation-service starts
+right away. Its one-time copy of the catalog (`CatalogBackfillRunner`) retried for 60s and then
+skipped. Measured: the copy gave up at 17:16:42, and catalog-service was ready at 17:17:02. With no
+movie metadata every recommendation list was empty, popular included, until the next restart. Fix:
+retry for 10 minutes. The copy runs on its own thread, so startup isn't held up. On the next fresh
+start it got through on attempt 87 and copied 21,349 movies in 18s.
+
+A knock-on effect isn't fixed here: ratings that arrive while metadata is missing add no genres to
+the user's profile, and nothing rebuilds the profile later, so those users never get collaborative
+peers.
+
+**2. A build next to mflix-mongo's first boot left it unusable.** `make up` ran
+`docker compose up -d --build`, so the images were built while `mflix-mongo` started. Under that
+load, mongod answered too slowly and the image's `runner` gave up before creating the replica set
+("error initializing … server selection timeout"). On every restart after that, `runner` assumed
+setup had happened and waited for a primary that didn't exist (`RSGhost`, "no replset config has
+been received"). It restarted four times and never recovered, unlike the hostname problem of
+Update 7. Fix: `make up` builds every image first, then starts the containers. Recovery for a
+volume already in this state: remove `mflix-mongo` and its two volumes, `mflix-data` and
+`mflix-configdb`. With the fix, the next fresh start had `mflix-mongo` healthy on its first boot.
+
+**3. On a cold stack, the gateway can answer 503 to a write that still commits.** Right after the
+first start's index rebuild, `POST /api/users/register` got a gateway 503, but user-service created
+the user anyway: a retry got 409, and a login in between got 401 because the write hadn't
+committed yet. This is the usual ambiguity of a timeout in front of a non-idempotent write. The
+seed script retries 5xx and timeouts and treats 409 as success. The API has no idempotency keys,
+so a client can't tell "failed" from "slow" any other way.
+
+**Running the demo on this host.** The first start's index rebuild leaves the Docker VM's swap
+full (1,022 of 1,023 MB measured), and mongot's lookups then take 2.5–7s, past
+recommendation-service's 3s timeout, so recommendations lose their content signal. The procedure
+for a recording: `make clean && make up` once, then `make down && make up` (50s; nothing to
+rebuild), then `make demo`. In that state the demo turned personal 2–5s after the review and showed
+content, collaborative and both signals.

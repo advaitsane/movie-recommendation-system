@@ -17,12 +17,14 @@ import com.movies.recommendation.service.IRecommendationService;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -82,17 +84,49 @@ public class RecommendationServiceImpl implements IRecommendationService {
             return cached.get().subList(0, effectiveLimit);
         }
 
-        List<RecommendedMovie> recommendations = mongoCircuitBreaker.executeSupplier(() -> {
+        Computed computed = mongoCircuitBreaker.executeSupplier(() -> {
             List<UserRating> ratings = userRatingRepository.findByUserId(userId);
+            Instant ratedUpTo = latestEventAt(ratings);
             if (ratings.isEmpty()) {
                 coldStart.increment();
-                return popularRecommendations(effectiveLimit);
+                return new Computed(popularRecommendations(effectiveLimit), ratedUpTo);
             }
-            return personalizedRecommendations(userId, ratings, effectiveLimit);
+            return new Computed(personalizedRecommendations(userId, ratings, effectiveLimit), ratedUpTo);
         });
 
-        recommendationCache.put(userId, recommendations);
-        return recommendations;
+        if (ratingsUnchangedSince(userId, computed.ratedUpTo())) {
+            recommendationCache.put(userId, computed.movies());
+        }
+        return computed.movies();
+    }
+
+    /** A result and the newest rating event it was computed from. */
+    private record Computed(List<RecommendedMovie> movies, Instant ratedUpTo) {}
+
+    private static Instant latestEventAt(List<UserRating> ratings) {
+        return ratings.stream()
+                .map(UserRating::getLastEventAt)
+                .filter(Objects::nonNull)
+                .max(Comparator.naturalOrder())
+                .orElse(null);
+    }
+
+    /**
+     * A rating event that lands while a result is being computed evicts the cache before the result
+     * is written, so caching it anyway would serve a stale list until the TTL. Seen in the demo: a
+     * movie the user had just rated stayed recommended for 5 minutes. A rating applied between this
+     * check and the write can still slip through; the TTL bounds that.
+     */
+    private boolean ratingsUnchangedSince(String userId, Instant ratedUpTo) {
+        try {
+            Instant latest = mongoCircuitBreaker.executeSupplier(() -> userRatingRepository
+                    .findFirstByUserIdOrderByLastEventAtDesc(userId)
+                    .map(UserRating::getLastEventAt)
+                    .orElse(null));
+            return Objects.equals(latest, ratedUpTo);
+        } catch (Exception ex) {
+            return false;
+        }
     }
 
     private List<RecommendedMovie> personalizedRecommendations(

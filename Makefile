@@ -7,14 +7,17 @@ VUS ?=
 # Chaos experiment to run: a script in chaos/ and its arguments.
 CHAOS ?= 02_service_kill.sh search-service 30
 
-.PHONY: help up up-all assistant wait down clean ps logs warmup smoke load chaos
+.PHONY: help up up-all assistant wait down clean ps logs warmup demo smoke load chaos
 
 help: ## List the targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-9s %s\n", $$1, $$2}'
 
 up: ## Build and start the stack (all but assistant-service and config-server), then wait until UP
 	@echo "first start: loads the sample_mflix dataset (~400 MB download), which takes a few minutes"
-	docker compose up -d --build
+	@# Build before starting anything: a build running alongside mflix-mongo's first boot left
+	@# its replica set uninitialized for good (ADR-0010 Update 10).
+	docker compose build
+	docker compose up -d
 	@scripts/wait-healthy.sh
 
 up-all: ## Like up, plus assistant-service and config-server (needs more than a 4 GB Docker VM)
@@ -46,6 +49,10 @@ logs: ## Follow the app services' logs
 
 warmup: ## Warm up the read paths before a measured run
 	@scripts/warmup.sh
+
+demo: warmup ## Warm up, seed a few fans' reviews, then walk a new user through the system
+	@scripts/seed-demo-data.sh
+	@scripts/demo.sh
 
 smoke: warmup ## Warm up, then one k6 iteration per journey to check the system end to end
 	k6 run -e SMOKE=1 loadtest/user-journey.js

@@ -61,7 +61,7 @@ public class EmbeddingRepairJob {
             return;
         }
         try {
-            long missing = repository.countByPlotEmbeddingIsNull();
+            long missing = repository.countByEmbeddingMissingTrue();
             withoutEmbedding.set(missing);
             if (missing == 0) {
                 return;
@@ -72,7 +72,7 @@ public class EmbeddingRepairJob {
             }
             logger.info("{} movies have no embedding — repairing...", missing);
             long repaired = repairAll();
-            withoutEmbedding.set(repository.countByPlotEmbeddingIsNull());
+            withoutEmbedding.set(repository.countByEmbeddingMissingTrue());
             logger.info("Embedding repair done: {} repaired, {} still without an embedding",
                     repaired, withoutEmbedding.get());
         } catch (Exception e) {
@@ -84,7 +84,7 @@ public class EmbeddingRepairJob {
         long repaired = 0;
         ObjectId after = FIRST_ID;
         List<MovieSearchDocument> batch;
-        while (!(batch = repository.findTop100ByPlotEmbeddingIsNullAndIdGreaterThanOrderByIdAsc(after)).isEmpty()) {
+        while (!(batch = repository.findTop100ByEmbeddingMissingTrueAndIdGreaterThanOrderByIdAsc(after)).isEmpty()) {
             after = batch.getLast().getId();
 
             // A movie with no title or plot has nothing to embed; it stays in the gauge.

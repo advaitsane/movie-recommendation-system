@@ -42,6 +42,7 @@ public class MovieSearchDocument {
         public static final String DIRECTORS = "directors";
         public static final String IMDB_RATING = "imdbRating";
         public static final String PLOT_EMBEDDING = "plotEmbedding";
+        public static final String EMBEDDING_MISSING = "embeddingMissing";
 
         private Fields() {
         }
@@ -83,6 +84,14 @@ public class MovieSearchDocument {
     private List<Double> plotEmbedding;
 
     /**
+     * True while plotEmbedding is null, absent otherwise, so its partial index holds only the
+     * movies {@code EmbeddingRepairJob} has to find. Querying plotEmbedding itself scans every
+     * document, vectors included. Kept in step by the plotEmbedding setter and builder method.
+     */
+    @Setter(AccessLevel.NONE)
+    private Boolean embeddingMissing;
+
+    /**
      * id of the last MovieEvent applied to this document — for debugging/idempotency tracing,
      * not for dedup on its own (Mongo's upsert-by-id already makes re-applying the same event
      * a no-op; this + lastEventAt exist to reject a late, out-of-order delivery instead).
@@ -90,4 +99,24 @@ public class MovieSearchDocument {
     private String lastEventId;
 
     private Instant lastEventAt;
+
+    public void setPlotEmbedding(List<Double> plotEmbedding) {
+        this.plotEmbedding = plotEmbedding;
+        this.embeddingMissing = missingMarker(plotEmbedding);
+    }
+
+    private static Boolean missingMarker(List<Double> plotEmbedding) {
+        return plotEmbedding == null ? Boolean.TRUE : null;
+    }
+
+    public static class MovieSearchDocumentBuilder {
+
+        private Boolean embeddingMissing = Boolean.TRUE;
+
+        public MovieSearchDocumentBuilder plotEmbedding(List<Double> plotEmbedding) {
+            this.plotEmbedding = plotEmbedding;
+            this.embeddingMissing = missingMarker(plotEmbedding);
+            return this;
+        }
+    }
 }

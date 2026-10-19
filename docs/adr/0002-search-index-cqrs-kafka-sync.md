@@ -244,3 +244,55 @@ backfill skipped ("already completed"), and one minute later the job logged "250
 embedding — repairing..." and, 20 seconds after that, "250 repaired, 0 still without an
 embedding". All 250 had 1536-dimension vectors again, every other field was byte-for-byte
 unchanged, and `search_movies_without_embedding` read 0.
+
+## Update: the repair job's count scanned every document (2026-10-19)
+
+**Found while preparing the Grafana dashboards.** The smoke test failed: vector searches through
+the gateway hit its 4-second budget and came back 503. Mongo's own timings for `movies_search`
+aggregations averaged 4 seconds. The cause was the job above. Its `plotEmbedding: null` count
+can't use an index, so every run read all 21,349 documents, about 260 MB of vectors, through a
+WiredTiger cache of 256 MB. That pushed mongot's vector index out of the page cache, and the
+searches after it waited on disk.
+
+Measured on the local stack, 20 distinct vector queries each, sent straight to search-service:
+
+| | p50 | p95 | max | major faults |
+|---|---|---|---|---|
+| Steady state | 0.47 s | 0.67 s | 2.13 s | 6,248 |
+| Right after the count (17.5 s, 21,349 docs examined) | 0.64 s | 2.39 s | 3.49 s | 45,622 |
+
+That happened one minute after every start, when the cache is coldest, and every 15 minutes
+after that: a sawtooth on any latency panel.
+
+**Fix: a marker field with a partial index.**
+- `embeddingMissing: true` is stored only while `plotEmbedding` is null. The model's setter and
+  builder keep the two in step, so the backfill and the Kafka consumer need no changes. The
+  repair's conditional update unsets it along with setting the vector.
+- `embedding_missing_index` on `{embeddingMissing: 1, _id: 1}`, partial on
+  `embeddingMissing: true`, created at startup with the other indexes. It holds only the movies
+  the job has to find, so it's empty in the normal case.
+- The count and the batch query read that index. The count is now a `COUNT_SCAN` that examines
+  no documents: 13 ms instead of 17.5 s. The batch query is an `IXSCAN`.
+
+**Not done: a migration.** A movie saved without a vector by an earlier version has no marker,
+and this job won't find it. A one-off `updateMany` would be one more full scan and one more
+piece of code for a case that doesn't exist here. This deployment had 0 such movies when the
+change went in, and a fresh start never has any. If it's ever needed, it's one shell command:
+`updateMany({plotEmbedding: null}, {$set: {embeddingMissing: true}})`.
+
+**Evidence.**
+- `MovieSearchDocumentTest` (3 tests) checks the marker for the builder (with or without a
+  `plotEmbedding` call) and the setter. `EmbeddingRepairJobTest`'s 6 tests now run against the
+  marker.
+- On the local stack: 100 movies had their vector removed and the marker set, and search-service
+  was restarted. The index already existed. One minute later the job logged "100 movies have no
+  embedding — repairing..." and, 4 seconds after that, "100 repaired, 0 still without an
+  embedding". 21,349 of 21,349 movies have 1536-dimension vectors, no markers are left, and
+  `search_movies_without_embedding` reads 0.
+- Running the new count by hand between two latency samples left vector search no slower
+  (p95 1.85 s before, 0.91 s after).
+
+**The noise that's left is the host.** Those samples are noisier than the steady state above.
+At the time the Docker VM (3.82 GiB) had its 1 GiB of swap full and 112 MB free, after
+search-service's image had just been rebuilt inside it. Swapped and evicted pages come back as
+major faults on the next search. Its sizing is in ADR-0010.

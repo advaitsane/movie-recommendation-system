@@ -15,9 +15,9 @@ import org.springframework.stereotype.Repository;
 public interface MovieSearchRepository
         extends MongoRepository<MovieSearchDocument, ObjectId>, EmbeddingRepairOperations {
 
-    /** {@code plotEmbedding: null} also matches documents without the field. */
-    long countByPlotEmbeddingIsNull();
+    /** Reads only the partial index; a plotEmbedding-null count would scan every document. */
+    long countByEmbeddingMissingTrue();
 
     /** The next batch for {@code EmbeddingRepairJob}, in {@code _id} order so a run always ends. */
-    List<MovieSearchDocument> findTop100ByPlotEmbeddingIsNullAndIdGreaterThanOrderByIdAsc(ObjectId after);
+    List<MovieSearchDocument> findTop100ByEmbeddingMissingTrueAndIdGreaterThanOrderByIdAsc(ObjectId after);
 }

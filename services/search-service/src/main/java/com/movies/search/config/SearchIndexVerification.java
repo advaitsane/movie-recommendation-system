@@ -2,6 +2,7 @@ package com.movies.search.config;
 
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
+import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.IndexOptions;
 import com.mongodb.client.model.Indexes;
 import com.movies.search.model.MovieSearchDocument;
@@ -13,10 +14,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
- * Startup creation of the compound text index (title/plot/fullplot) and year index that this
- * service's queries depend on. The Atlas Vector Search index is handled separately by
- * {@link VectorSearchIndexVerification} (a different, mongot-backed index type). Non-blocking:
- * failures are logged, not thrown, so a misconfigured Mongo doesn't block startup.
+ * Startup creation of the compound text index (title/plot/fullplot), year index and
+ * embedding-missing index that this service's queries depend on. The Atlas Vector Search index
+ * is handled separately by {@link VectorSearchIndexVerification} (a different, mongot-backed
+ * index type). Non-blocking: failures are logged, not thrown, so a misconfigured Mongo doesn't
+ * block startup.
  */
 @Component
 public class SearchIndexVerification {
@@ -26,6 +28,7 @@ public class SearchIndexVerification {
     private static final String COLLECTION = "movies_search";
     private static final String TEXT_INDEX_NAME = "movie_text_index";
     private static final String YEAR_INDEX_NAME = "year_index";
+    private static final String EMBEDDING_MISSING_INDEX_NAME = "embedding_missing_index";
 
     private final MongoDatabase database;
 
@@ -41,6 +44,7 @@ public class SearchIndexVerification {
             MongoCollection<Document> collection = database.getCollection(COLLECTION);
             createTextIndex(collection);
             createYearIndex(collection);
+            createEmbeddingMissingIndex(collection);
             logger.info("Index verification completed successfully");
         } catch (Exception e) {
             logger.error("Index verification failed: {}", e.getMessage(), e);
@@ -72,6 +76,25 @@ public class SearchIndexVerification {
                 Indexes.ascending(MovieSearchDocument.Fields.YEAR),
                 new IndexOptions().name(YEAR_INDEX_NAME).background(true));
         logger.info("Year index '{}' created", YEAR_INDEX_NAME);
+    }
+
+    /**
+     * Partial, so it holds only the movies without an embedding: EmbeddingRepairJob's periodic
+     * count stays an index read instead of a scan that evicts the vector index from memory.
+     */
+    private void createEmbeddingMissingIndex(MongoCollection<Document> collection) {
+        if (indexExists(collection, EMBEDDING_MISSING_INDEX_NAME)) {
+            logger.info("Index '{}' already exists", EMBEDDING_MISSING_INDEX_NAME);
+            return;
+        }
+
+        String field = MovieSearchDocument.Fields.EMBEDDING_MISSING;
+        collection.createIndex(
+                Indexes.ascending(field, MovieSearchDocument.Fields.ID),
+                new IndexOptions().name(EMBEDDING_MISSING_INDEX_NAME)
+                        .partialFilterExpression(Filters.eq(field, true))
+                        .background(true));
+        logger.info("Index '{}' created", EMBEDDING_MISSING_INDEX_NAME);
     }
 
     private boolean indexExists(MongoCollection<Document> collection, String name) {

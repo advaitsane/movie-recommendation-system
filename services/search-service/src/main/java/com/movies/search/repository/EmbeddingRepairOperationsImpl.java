@@ -20,11 +20,11 @@ class EmbeddingRepairOperationsImpl implements EmbeddingRepairOperations {
     @Override
     public boolean setEmbeddingIfUnchanged(MovieSearchDocument document, List<Double> embedding) {
         Query unchanged = Query.query(Criteria.where(Fields.ID).is(document.getId())
-                .and(Fields.PLOT_EMBEDDING).is(null)
+                .and(Fields.EMBEDDING_MISSING).is(true)
                 .and(Fields.TITLE).is(document.getTitle())
                 .and(Fields.PLOT).is(document.getPlot())
                 .and(Fields.FULLPLOT).is(document.getFullplot()));
-        return mongoTemplate.updateFirst(unchanged, Update.update(Fields.PLOT_EMBEDDING, embedding),
-                MovieSearchDocument.class).getModifiedCount() == 1;
+        Update setEmbedding = Update.update(Fields.PLOT_EMBEDDING, embedding).unset(Fields.EMBEDDING_MISSING);
+        return mongoTemplate.updateFirst(unchanged, setEmbedding, MovieSearchDocument.class).getModifiedCount() == 1;
     }
 }

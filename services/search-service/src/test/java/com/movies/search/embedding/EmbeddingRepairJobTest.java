@@ -44,11 +44,11 @@ class EmbeddingRepairJobTest {
     @BeforeEach
     void setUp() {
         repository = mock(MovieSearchRepository.class);
-        when(repository.countByPlotEmbeddingIsNull()).thenAnswer(invocation ->
-                stored.values().stream().filter(document -> document.getPlotEmbedding() == null).count());
-        when(repository.findTop100ByPlotEmbeddingIsNullAndIdGreaterThanOrderByIdAsc(any())).thenAnswer(invocation ->
+        when(repository.countByEmbeddingMissingTrue()).thenAnswer(invocation ->
+                stored.values().stream().filter(document -> Boolean.TRUE.equals(document.getEmbeddingMissing())).count());
+        when(repository.findTop100ByEmbeddingMissingTrueAndIdGreaterThanOrderByIdAsc(any())).thenAnswer(invocation ->
                 stored.tailMap(invocation.getArgument(0), false).values().stream()
-                        .filter(document -> document.getPlotEmbedding() == null)
+                        .filter(document -> Boolean.TRUE.equals(document.getEmbeddingMissing()))
                         .limit(100)
                         .toList());
         when(repository.setEmbeddingIfUnchanged(any(), anyList())).thenAnswer(invocation -> {
@@ -108,7 +108,7 @@ class EmbeddingRepairJobTest {
 
         job.repair();
 
-        verify(repository, never()).countByPlotEmbeddingIsNull();
+        verify(repository, never()).countByEmbeddingMissingTrue();
         verify(embeddingService, never()).embedDocuments(anyList());
     }
 

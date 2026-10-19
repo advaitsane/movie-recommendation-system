@@ -14,4 +14,7 @@ public interface UserRatingRepository extends MongoRepository<UserRating, String
     List<UserRating> findByUserIdInAndRatingGreaterThanEqual(List<String> userIds, Integer rating);
 
     List<UserRating> findByRatingGreaterThanEqual(Integer rating);
+
+    /** The user's most recently applied rating event; empty for a user with no ratings. */
+    Optional<UserRating> findFirstByUserIdOrderByLastEventAtDesc(String userId);
 }

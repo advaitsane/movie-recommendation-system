@@ -255,4 +255,32 @@ class RecommendationServiceImplTest {
         assertThat(result).hasSize(1);
         assertThat(result.get(0).source()).isEqualTo(RecommendationSource.POPULAR);
     }
+
+    @Test
+    @DisplayName("a result computed from the user's latest ratings is cached")
+    void getRecommendations_ratingsUnchanged_caches() {
+        Instant rated = Instant.parse("2026-10-19T19:28:27Z");
+        when(userRatingRepository.findByUserId("u1")).thenReturn(List.of(rating("u1", "seed1", 5, rated)));
+        when(userRatingRepository.findFirstByUserIdOrderByLastEventAtDesc("u1"))
+                .thenReturn(Optional.of(rating("u1", "seed1", 5, rated)));
+
+        service.getRecommendations("u1", 10);
+
+        verify(recommendationCache).put(eq("u1"), any());
+    }
+
+    @Test
+    @DisplayName("a rating that arrives during the computation keeps the now-stale result out of the cache")
+    void getRecommendations_ratingArrivesMidComputation_doesNotCache() {
+        Instant first = Instant.parse("2026-10-19T19:28:27.018Z");
+        Instant second = Instant.parse("2026-10-19T19:28:27.334Z");
+        when(userRatingRepository.findByUserId("u1")).thenReturn(List.of(rating("u1", "matrix", 5, first)));
+        // By the time the result is ready, the user's second rating has been applied.
+        when(userRatingRepository.findFirstByUserIdOrderByLastEventAtDesc("u1"))
+                .thenReturn(Optional.of(rating("u1", "bladeRunner", 5, second)));
+
+        service.getRecommendations("u1", 10);
+
+        verify(recommendationCache, never()).put(anyString(), any());
+    }
 }

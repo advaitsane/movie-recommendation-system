@@ -108,16 +108,19 @@ resilience4j:
   timelimiter:
     configs:
       default:
-        timeout-duration: 4s
+        # The design budget is 4s. docker-compose raises it for a 4 GB Docker VM, where a cold
+        # vector search pages for 5-18s (ADR-0010 Update 9). Not below 6s: see the instance below.
+        timeout-duration: ${GATEWAY_TIMEOUT:4s}
     instances:
       # recommendation-service's own call to search-service already degrades gracefully on
       # timeout (falls back to collaborative/popularity signals — see ADR-0005), but its worst-
       # case internal budget (connect-timeout-ms 2000 + read-timeout-ms 3000, see
       # SearchClientConfig) is 5s — longer than the gateway's global 4s default. Under load the
       # gateway was aborting (503) before that fallback could return a normal 200. See ADR-0010.
+      # 6s covers one search call, but a recommendation makes up to three in sequence (Update 9).
       recommendationServiceCB:
         base-config: default
-        timeout-duration: 6s
+        timeout-duration: ${GATEWAY_RECOMMENDATION_TIMEOUT:6s}
 
 # Same secret user-service signs tokens with — see ADR-0007. Deliberately no default: it must come
 # from JWT_SECRET (docker-compose sets one dev value for both services, so they always agree) or
@@ -145,6 +148,15 @@ management:
     web:
       exposure:
         include: health,prometheus,info
+  # Fixed latency buckets for p50/p95/p99 and SLO panels in Grafana: a few series per endpoint
+  # instead of Micrometer's ~70 default ones. 4s is the gateway's timeout budget (ADR-0010).
+  metrics:
+    distribution:
+      slo:
+        http.server.requests: 50ms,100ms,250ms,500ms,1s,2s,4s,8s
+        # The proxied call to each route: the server metric tags those requests uri=UNKNOWN.
+        # 10s and 12s are the laptop budgets in docker-compose.yml (ADR-0010 Update 9).
+        http.client.requests: 50ms,100ms,250ms,500ms,1s,2s,4s,8s,10s,12s
   tracing:
     sampling:
       probability: 1.0

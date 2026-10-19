@@ -18,6 +18,13 @@ to spare (ADR-0010 Update 6):
 - **Right after a cold start, the first searches are slow** (2.5–3.5s). That's close to the
   gateway's 4s search budget, so a few get the circuit breaker's 503. `make smoke` and
   `make load` warm up first (`make warmup`).
+- **The stack needs about 3.85 GB, so a 4 GB VM swaps** (ADR-0010 Update 9):
+  - assistant-service is off by default; `make assistant` adds it to a running stack, and
+    `make up-all` starts it with config-server;
+  - the gateway's timeout is 10s under compose instead of its 4s design budget, because a vector
+    search that pages takes 5–18s, and 12s instead of 6s on the recommendation route. On a bigger
+    host, `GATEWAY_TIMEOUT=4s GATEWAY_RECOMMENDATION_TIMEOUT=6s make up` restores the design budget;
+  - a latency delay injected by `make chaos` has to exceed 10s to trip the breaker.
 - **The full load test (`make load`) is heavy for this host.** Use `make load VUS=5`, and close
   other apps first. ADR-0010 Updates 4–5 show what an overloaded host does to the numbers.
 
@@ -43,8 +50,9 @@ crashed the container under load (ADR-0010).
 
 On its first start, search-service copies the catalog (about 20,000 movies) into its own index.
 
-config-server is off by default, since no service reads from it yet (ADR-0009). `make up-all`
-starts it too.
+config-server is off by default, since no service reads from it yet (ADR-0009), and so is
+assistant-service, to fit a 4 GB Docker VM (see [hardware](#hardware)). `make assistant` adds
+assistant-service to a running stack; `make up-all` starts both.
 
 `make down` stops everything and keeps the data. `make clean` also deletes the data volumes, but
 keeps the downloaded archive.
@@ -68,7 +76,8 @@ collection:
   Mongo and Redis; builds its read models from catalog and review events.
 - [user-service](../services/user-service/README.md) (:8085). Uses its own `mflix_users` database
   on the compose Postgres. It issues the JWTs that api-gateway validates.
-- [assistant-service](../services/assistant-service/README.md) (:8086). Keeps chat memory in its
+- [assistant-service](../services/assistant-service/README.md) (:8086, `make assistant` or
+  `make up-all`). Keeps chat memory in its
   own `mflix_assistant` database on the compose Postgres (on an older data volume, create it once:
   `docker compose exec postgres createdb -U mflix mflix_assistant`). Needs an OpenAI key
   (`OPENAI_API_KEY`, or a gitignored `application-local.yml`); without one it starts, and every
@@ -92,8 +101,17 @@ with its `local` profile; its README has the details.
 
 - Jaeger UI: http://localhost:16686
 - Prometheus: http://localhost:9090 (one scrape target per service)
-- Grafana: http://localhost:3001 (`admin`/`admin`; the Prometheus datasource is provisioned
-  automatically)
+- Grafana: http://localhost:3001, no login needed to view (`admin`/`admin` to edit). Three
+  dashboards are provisioned from `infra/grafana/provisioning/dashboards/json/`, in the Movies
+  folder:
+  - **Service overview (RED):** rate, errors and latency per service and per gateway route;
+  - **Resilience:** circuit breakers, recommendation fallbacks and connection pools, the one to
+    watch during `make chaos`;
+  - **Events and JVM:** Kafka lag, the review outbox backlog and JVM memory.
+
+  They're read-only in the UI: edit the JSON and Grafana reloads it. ADR-0008 Update 2 explains
+  each panel's metrics. [preset-queries.md](preset-queries.md) lists the same queries as plain
+  PromQL, one per on-call question.
 
 ## 4. Load testing
 
@@ -126,7 +144,7 @@ It also records how each was fixed. The raw k6 summaries are kept in `loadtest/r
 ```bash
 make chaos CHAOS="01_dependency_kill.sh mflix-mongo 30"              # stop mongo, postgres, kafka or mflix-mongo
 make chaos CHAOS="02_service_kill.sh search-service 30"              # docker kill an app service
-make chaos CHAOS="03_network_fault.sh delay search-service 8000 30"  # latency, packet loss or partition (pumba)
+make chaos CHAOS="03_network_fault.sh delay search-service 12000 30" # latency, packet loss or partition (pumba)
 make chaos CHAOS="04_resource_exhaustion.sh search-service 96 30"    # shrink a container's memory limit
 ```
 

@@ -6,6 +6,7 @@ import com.movies.recommendation.config.RecommendationProperties;
 import com.movies.recommendation.dto.RecommendationSource;
 import com.movies.recommendation.dto.RecommendedMovie;
 import com.movies.recommendation.dto.SearchSimilarResult;
+import com.movies.recommendation.metrics.FallbackMetrics;
 import com.movies.recommendation.model.MovieMetadata;
 import com.movies.recommendation.model.UserProfile;
 import com.movies.recommendation.model.UserRating;
@@ -14,6 +15,8 @@ import com.movies.recommendation.repository.UserProfileRepository;
 import com.movies.recommendation.repository.UserRatingRepository;
 import com.movies.recommendation.service.IRecommendationService;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -31,6 +34,7 @@ import org.springframework.stereotype.Service;
  * signal normalized to [0,1] first so neither dominates by raw magnitude alone. Falls back to a
  * popularity list for cold-start users or when neither signal yields a candidate. All Mongo reads
  * run inside one {@code mongoCircuitBreaker} span per request — see docs/adr/0005 and the README.
+ * Each fallback counts in {@code recommendation.fallback}, tagged with its reason.
  */
 @Service
 public class RecommendationServiceImpl implements IRecommendationService {
@@ -46,6 +50,8 @@ public class RecommendationServiceImpl implements IRecommendationService {
     private final RecommendationCache recommendationCache;
     private final RecommendationProperties properties;
     private final CircuitBreaker mongoCircuitBreaker;
+    private final Counter coldStart;
+    private final Counter noCandidates;
 
     public RecommendationServiceImpl(
             UserRatingRepository userRatingRepository,
@@ -54,7 +60,8 @@ public class RecommendationServiceImpl implements IRecommendationService {
             SearchServiceClient searchServiceClient,
             RecommendationCache recommendationCache,
             RecommendationProperties properties,
-            CircuitBreaker mongoCircuitBreaker) {
+            CircuitBreaker mongoCircuitBreaker,
+            MeterRegistry meterRegistry) {
         this.userRatingRepository = userRatingRepository;
         this.userProfileRepository = userProfileRepository;
         this.movieMetadataRepository = movieMetadataRepository;
@@ -62,6 +69,8 @@ public class RecommendationServiceImpl implements IRecommendationService {
         this.recommendationCache = recommendationCache;
         this.properties = properties;
         this.mongoCircuitBreaker = mongoCircuitBreaker;
+        this.coldStart = FallbackMetrics.counter(meterRegistry, FallbackMetrics.COLD_START);
+        this.noCandidates = FallbackMetrics.counter(meterRegistry, FallbackMetrics.NO_CANDIDATES);
     }
 
     @Override
@@ -75,9 +84,11 @@ public class RecommendationServiceImpl implements IRecommendationService {
 
         List<RecommendedMovie> recommendations = mongoCircuitBreaker.executeSupplier(() -> {
             List<UserRating> ratings = userRatingRepository.findByUserId(userId);
-            return ratings.isEmpty()
-                    ? popularRecommendations(effectiveLimit)
-                    : personalizedRecommendations(userId, ratings, effectiveLimit);
+            if (ratings.isEmpty()) {
+                coldStart.increment();
+                return popularRecommendations(effectiveLimit);
+            }
+            return personalizedRecommendations(userId, ratings, effectiveLimit);
         });
 
         recommendationCache.put(userId, recommendations);
@@ -96,6 +107,7 @@ public class RecommendationServiceImpl implements IRecommendationService {
         candidateIds.addAll(collabScores.keySet());
 
         if (candidateIds.isEmpty()) {
+            noCandidates.increment();
             return popularRecommendations(limit);
         }
 

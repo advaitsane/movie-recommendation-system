@@ -3,6 +3,7 @@ package com.movies.recommendation.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.movies.recommendation.event.MovieEvent;
 import com.movies.recommendation.event.ReviewEvent;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.util.Map;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
@@ -14,6 +15,7 @@ import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
+import org.springframework.kafka.core.MicrometerConsumerListener;
 import org.springframework.kafka.support.serializer.ErrorHandlingDeserializer;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
 
@@ -36,7 +38,8 @@ public class KafkaConsumerConfig {
     private String groupId;
 
     @Bean
-    public ConsumerFactory<String, MovieEvent> movieEventConsumerFactory(ObjectMapper objectMapper) {
+    public ConsumerFactory<String, MovieEvent> movieEventConsumerFactory(
+            ObjectMapper objectMapper, MeterRegistry meterRegistry) {
         JsonDeserializer<MovieEvent> valueDeserializer = new JsonDeserializer<>(MovieEvent.class, objectMapper);
         valueDeserializer.setUseTypeHeaders(false);
         valueDeserializer.setRemoveTypeHeaders(false);
@@ -49,8 +52,11 @@ public class KafkaConsumerConfig {
                 ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class
         );
 
-        return new DefaultKafkaConsumerFactory<>(
+        DefaultKafkaConsumerFactory<String, MovieEvent> factory = new DefaultKafkaConsumerFactory<>(
                 configProps, new StringDeserializer(), new ErrorHandlingDeserializer<>(valueDeserializer));
+        // Boot adds this to the factory it builds; a factory built here has to add it itself.
+        factory.addListener(new MicrometerConsumerListener<>(meterRegistry));
+        return factory;
     }
 
     @Bean
@@ -63,7 +69,8 @@ public class KafkaConsumerConfig {
     }
 
     @Bean
-    public ConsumerFactory<String, ReviewEvent> reviewEventConsumerFactory(ObjectMapper objectMapper) {
+    public ConsumerFactory<String, ReviewEvent> reviewEventConsumerFactory(
+            ObjectMapper objectMapper, MeterRegistry meterRegistry) {
         JsonDeserializer<ReviewEvent> valueDeserializer = new JsonDeserializer<>(ReviewEvent.class, objectMapper);
         valueDeserializer.setUseTypeHeaders(false);
         valueDeserializer.setRemoveTypeHeaders(false);
@@ -76,8 +83,11 @@ public class KafkaConsumerConfig {
                 ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class
         );
 
-        return new DefaultKafkaConsumerFactory<>(
+        DefaultKafkaConsumerFactory<String, ReviewEvent> factory = new DefaultKafkaConsumerFactory<>(
                 configProps, new StringDeserializer(), new ErrorHandlingDeserializer<>(valueDeserializer));
+        // Boot adds this to the factory it builds; a factory built here has to add it itself.
+        factory.addListener(new MicrometerConsumerListener<>(meterRegistry));
+        return factory;
     }
 
     @Bean

@@ -1,0 +1,13 @@
+# Loads the dashboards in json/ on Grafana start: Service overview (RED), Resilience, and Events
+# and JVM. Edit the JSON, not the UI: a UI change is lost when the container is recreated. See
+# docs/adr/0008.
+apiVersion: 1
+
+providers:
+  - name: movies
+    folder: Movies
+    type: file
+    disableDeletion: true
+    allowUiUpdates: false
+    options:
+      path: /etc/grafana/provisioning/dashboards/json

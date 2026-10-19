@@ -45,7 +45,12 @@ public class CatalogBackfillRunner implements ApplicationRunner {
 
     /** catalog-service caps {@code size} at 100. */
     static final int PAGE_SIZE = 100;
-    private static final int FIRST_PAGE_ATTEMPTS = 10;
+    /**
+     * Ten minutes. On a first start catalog-service waits for the sample_mflix restore and was up
+     * about 3 minutes after this service; the old 60s gave up first and left recommendations empty
+     * until a restart.
+     */
+    private static final int FIRST_PAGE_ATTEMPTS = 100;
     private static final Duration RETRY_DELAY = Duration.ofSeconds(6);
 
     private final MovieMetadataRepository repository;

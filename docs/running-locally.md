@@ -35,8 +35,26 @@ to Kubernetes.
 
 ```bash
 make up        # docker compose up -d --build, then wait until every service reports UP
+make demo      # walk a new user through the system, step by step
 make help      # every other target
 ```
+
+`make demo` warms up the read paths, seeds eight fans with recognizable tastes
+(`scripts/seed-demo-data.sh`, safe to rerun), then runs `scripts/demo.sh`:
+1. a new user registers;
+2. searches by keyword and by meaning;
+3. gets cold-start recommendations;
+4. reviews two movies;
+5. waits until recommendations turn personal, and prints how long the review event took to arrive.
+
+With assistant-service running (`make assistant`), it ends with one streamed answer.
+`DEMO_PAUSE=2 make demo` slows it down for a recording.
+
+Run it on fresh data. On a 4 GB Docker VM the first start's index rebuild leaves the VM's swap
+full, so restart once before recording: `make clean && make up`, then `make down && make up`,
+then `make demo` (ADR-0010 Update 10). Each run adds a user who liked exactly The Matrix
+and Blade Runner. Later demo users pick those as their closest collaborative peers, though they
+have nothing new to recommend, so after a few runs the collaborative signal empties.
 
 On the first start, two one-shot compose jobs load MongoDB's `sample_mflix` dataset into
 `mflix-mongo`:

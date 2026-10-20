@@ -72,6 +72,12 @@ config-server is off by default, since no service reads from it yet (ADR-0009), 
 assistant-service, to fit a 4 GB Docker VM (see [hardware](#hardware)). `make assistant` adds
 assistant-service to a running stack; `make up-all` starts both.
 
+`make eval-up` starts only what the assistant's tools reach: assistant-service, search-service,
+recommendation-service, their stores and Jaeger, about 2.2 GB instead of 3.85. There's no
+gateway, so call assistant-service on :8086 with an `X-User-Id` header. Kafka and catalog-service
+stay down, so no events flow and nothing is backfilled; run `make up` once first to load the data.
+`docker-compose.eval.yml` holds the overrides. `make down` stops it.
+
 `make down` stops everything and keeps the data. `make clean` also deletes the data volumes, but
 keeps the downloaded archive.
 

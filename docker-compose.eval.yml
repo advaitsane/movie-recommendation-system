@@ -1,0 +1,14 @@
+# Overrides for `make eval-up`, which starts only what the assistant evals reach (see the Makefile).
+# Kafka isn't started. An unresolvable `kafka` host fails the consumer's construction and with it
+# startup, and spring.kafka.listener.auto-startup doesn't reach these services' own listener
+# factories. localhost resolves, so the consumers start and retry quietly; events don't matter to
+# an eval run.
+services:
+  search-service:
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: localhost:9092
+  recommendation-service:
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: localhost:9092
+      # catalog-service isn't started; movie_metadata is already in the volume from `make up`.
+      CATALOG_BACKFILL_ENABLED: "false"

@@ -117,4 +117,6 @@ A failing tool doesn't fail the answer: Spring AI sends the tool's error ("searc
 right now") back to the model as its result, and the model picks another way (ADR-0013). One slow
 dependency costs a step, not the whole answer.
 
-This is v1: evaluations and a grounding check come next (roadmap Phase 2).
+This is v1. Its answers are now measured: 34 eval scenarios check every recommended title against
+the catalog, and 33 pass ([`evals/`](../evals/), [ADR-0014](adr/0014-assistant-evals.md)). A
+grounding check inside the service comes next.

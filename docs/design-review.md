@@ -291,8 +291,10 @@ These are known and documented, not fixed yet:
 
 ## Roadmap
 
-- **The assistant, phase 2:** evaluations, then a check that answers only name movies the tools
-  returned, then token, cost and time-to-first-token panels.
+- **The assistant, phase 2:** evals scored against the catalog are done
+  ([ADR-0014](adr/0014-assistant-evals.md): 33/34 scenarios pass). Next come an LLM judge for
+  relevance and a CI gate, then a check that answers only name movies the tools returned, then
+  token, cost and time-to-first-token panels.
 - **Kubernetes:** Helm charts, a local `kind` cluster, then EKS with Terraform. That gives the
   design budget real headroom, probes for the health checks above, and network policy for the
   gateway bypass.

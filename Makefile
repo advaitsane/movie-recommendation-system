@@ -7,7 +7,7 @@ VUS ?=
 # Chaos experiment to run: a script in chaos/ and its arguments.
 CHAOS ?= 02_service_kill.sh search-service 30
 
-.PHONY: help up up-all assistant wait down clean ps logs warmup demo smoke load chaos
+.PHONY: help up up-all assistant eval-up wait down clean ps logs warmup demo smoke load chaos
 
 help: ## List the targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-9s %s\n", $$1, $$2}'
@@ -26,6 +26,20 @@ up-all: ## Like up, plus assistant-service and config-server (needs more than a 
 assistant: ## Add assistant-service to a running stack (pass OPENAI_API_KEY from the shell)
 	docker compose --profile assistant up -d --build assistant-service
 	@COMPOSE_PROFILES=assistant scripts/wait-healthy.sh
+
+# What the assistant's tools reach, called on :8086 with an X-User-Id header: no gateway, Kafka,
+# catalog/review/user services or metrics stack. Data comes from the volumes, so run `make up` once
+# first: with an empty movies_search, search-service would wait on catalog-service for its backfill.
+# docker-compose.eval.yml turns off what would wait on the services left out.
+EVAL_APPS := assistant-service search-service recommendation-service
+EVAL_SERVICES := $(EVAL_APPS) mflix-mongo mongo redis postgres jaeger
+EVAL_COMPOSE := docker compose -f docker-compose.yml -f docker-compose.eval.yml --profile assistant
+
+eval-up: ## Start only what the assistant evals need (after one `make up` has loaded the data)
+	@# Build first, as in `up` (ADR-0010 Update 10).
+	$(EVAL_COMPOSE) build $(EVAL_APPS)
+	$(EVAL_COMPOSE) up -d --no-deps $(EVAL_SERVICES)
+	@WAIT_SERVICES="search-service:8082 recommendation-service:8084 assistant-service:8086" scripts/wait-healthy.sh
 
 wait: ## Wait until every service is UP
 	@scripts/wait-healthy.sh

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Waits until every app service's /actuator/health reports UP, printing how long each one took.
 # Usage: scripts/wait-healthy.sh [timeout_seconds]
+# WAIT_SERVICES="name:port ..." checks only those, for a partial stack such as `make eval-up`.
 set -uo pipefail
 
 # A first start takes longest: search-service copies the whole catalog (~21k movies, about 6
@@ -11,6 +12,7 @@ SERVICES=(api-gateway:8080 catalog-service:8081 search-service:8082 review-servi
 # assistant-service and config-server only run under their compose profiles.
 [[ ",${COMPOSE_PROFILES:-}," == *,assistant,* ]] && SERVICES+=(assistant-service:8086)
 [[ ",${COMPOSE_PROFILES:-}," == *,config,* ]] && SERVICES+=(config-server:8888)
+[[ -n "${WAIT_SERVICES:-}" ]] && read -ra SERVICES <<<"$WAIT_SERVICES"
 
 start=$(date +%s)
 pending=("${SERVICES[@]}")

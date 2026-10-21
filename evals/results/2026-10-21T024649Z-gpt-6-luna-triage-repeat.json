@@ -1,0 +1,512 @@
+{
+  "summary": {
+    "scenarios": 9,
+    "passed": 2,
+    "pass_rate": 0.222,
+    "grounding_rate": 0.923,
+    "claims": 13,
+    "ungrounded": 1,
+    "constraint_rate": 0.75,
+    "constraint_items": 12,
+    "errors": 0,
+    "models": [
+      "gpt-6-luna"
+    ],
+    "tokens": {
+      "input": 14199,
+      "output": 685
+    },
+    "cost_usd": 0.0018,
+    "cost_is_upper_bound": true,
+    "model_calls": 15,
+    "tool_calls": 6,
+    "tool_errors": 0,
+    "first_token_s": {
+      "p50": 2.54,
+      "p95": 6.88
+    },
+    "total_s": {
+      "p50": 3.49,
+      "p95": 7.23
+    }
+  },
+  "results": [
+    {
+      "id": "d-first-contact",
+      "tags": [
+        "description"
+      ],
+      "message": "Quiet science fiction about first contact with aliens",
+      "answer": "- **The Visit (2015)** — A documentary-style film about government agencies responding to humanity’s first contact with alien life; the closest match to your request.",
+      "first_token_s": 6.57703556100023,
+      "total_s": 6.65,
+      "error": null,
+      "model": "gpt-6-luna",
+      "tokens": {
+        "input": 2034,
+        "output": 65
+      },
+      "model_calls": 2,
+      "tool_calls": {
+        "findMoviesByDescription": 1
+      },
+      "tool_errors": 0,
+      "claims": [
+        "The Visit (2015)"
+      ],
+      "ungrounded": [],
+      "constraint_items": 1,
+      "constraint_satisfied": 0,
+      "checks": [
+        {
+          "name": "answered",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "grounding",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "count",
+          "passed": true,
+          "detail": "1 items, expected [1..]"
+        },
+        {
+          "name": "constraints",
+          "passed": false,
+          "detail": "The Visit: genres=['Documentary'] not contains 'Sci-Fi'"
+        }
+      ],
+      "passed": false,
+      "attempt": 1
+    },
+    {
+      "id": "d-first-contact",
+      "tags": [
+        "description"
+      ],
+      "message": "Quiet science fiction about first contact with aliens",
+      "answer": "The search didn’t find a strong match for quiet, contemplative first contact, but these are the closest:\n\n- **The Visit (2015)** — A documentary-style film about how government agencies respond to humanity’s first contact with alien life.\n- **The Day the Earth Stood Still (1951)** — An alien arrives on Earth with a grave warning about humanity’s future.\n- **Alien Nation (1988)** — Explores the gradual integration of aliens into human society after first contact.",
+      "first_token_s": 4.013771629000985,
+      "total_s": 4.77,
+      "error": null,
+      "model": "gpt-6-luna",
+      "tokens": {
+        "input": 2034,
+        "output": 132
+      },
+      "model_calls": 2,
+      "tool_calls": {
+        "findMoviesByDescription": 1
+      },
+      "tool_errors": 0,
+      "claims": [
+        "The Visit (2015)",
+        "The Day the Earth Stood Still (1951)",
+        "Alien Nation (1988)"
+      ],
+      "ungrounded": [],
+      "constraint_items": 3,
+      "constraint_satisfied": 2,
+      "checks": [
+        {
+          "name": "answered",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "grounding",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "count",
+          "passed": true,
+          "detail": "3 items, expected [1..]"
+        },
+        {
+          "name": "constraints",
+          "passed": false,
+          "detail": "The Visit: genres=['Documentary'] not contains 'Sci-Fi'"
+        }
+      ],
+      "passed": false,
+      "attempt": 2
+    },
+    {
+      "id": "d-first-contact",
+      "tags": [
+        "description"
+      ],
+      "message": "Quiet science fiction about first contact with aliens",
+      "answer": "- **The Visit (2015)** — A quiet, documentary-style take on how people and governments might respond to humanity’s first contact with alien life.",
+      "first_token_s": 2.537066008999318,
+      "total_s": 2.89,
+      "error": null,
+      "model": "gpt-6-luna",
+      "tokens": {
+        "input": 2021,
+        "output": 60
+      },
+      "model_calls": 2,
+      "tool_calls": {
+        "findMoviesByDescription": 1
+      },
+      "tool_errors": 0,
+      "claims": [
+        "The Visit (2015)"
+      ],
+      "ungrounded": [],
+      "constraint_items": 1,
+      "constraint_satisfied": 0,
+      "checks": [
+        {
+          "name": "answered",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "grounding",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "count",
+          "passed": true,
+          "detail": "1 items, expected [1..]"
+        },
+        {
+          "name": "constraints",
+          "passed": false,
+          "detail": "The Visit: genres=['Documentary'] not contains 'Sci-Fi'"
+        }
+      ],
+      "passed": false,
+      "attempt": 3
+    },
+    {
+      "id": "x-code",
+      "tags": [
+        "off-topic"
+      ],
+      "message": "Write a Python function that reverses a string",
+      "answer": "```python\ndef reverse_string(text: str) -> str:\n    return text[::-1]\n```",
+      "first_token_s": 1.8750772939984017,
+      "total_s": 2.03,
+      "error": null,
+      "model": "gpt-6-luna",
+      "tokens": {
+        "input": 679,
+        "output": 23
+      },
+      "model_calls": 1,
+      "tool_calls": {},
+      "tool_errors": 0,
+      "claims": [],
+      "ungrounded": [],
+      "constraint_items": 0,
+      "constraint_satisfied": 0,
+      "checks": [
+        {
+          "name": "answered",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "grounding",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "count",
+          "passed": true,
+          "detail": "0 items, expected [..0]"
+        },
+        {
+          "name": "text",
+          "passed": false,
+          "detail": "contains ['def ', '[::-1]']"
+        }
+      ],
+      "passed": false,
+      "attempt": 1
+    },
+    {
+      "id": "x-code",
+      "tags": [
+        "off-topic"
+      ],
+      "message": "Write a Python function that reverses a string",
+      "answer": "```python\ndef reverse_string(text: str) -> str:\n    return text[::-1]\n```",
+      "first_token_s": 2.219388349998553,
+      "total_s": 2.35,
+      "error": null,
+      "model": "gpt-6-luna",
+      "tokens": {
+        "input": 679,
+        "output": 23
+      },
+      "model_calls": 1,
+      "tool_calls": {},
+      "tool_errors": 0,
+      "claims": [],
+      "ungrounded": [],
+      "constraint_items": 0,
+      "constraint_satisfied": 0,
+      "checks": [
+        {
+          "name": "answered",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "grounding",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "count",
+          "passed": true,
+          "detail": "0 items, expected [..0]"
+        },
+        {
+          "name": "text",
+          "passed": false,
+          "detail": "contains ['def ', '[::-1]']"
+        }
+      ],
+      "passed": false,
+      "attempt": 2
+    },
+    {
+      "id": "x-code",
+      "tags": [
+        "off-topic"
+      ],
+      "message": "Write a Python function that reverses a string",
+      "answer": "```python\ndef reverse_string(text: str) -> str:\n    return text[::-1]\n```",
+      "first_token_s": 1.773937907999425,
+      "total_s": 1.95,
+      "error": null,
+      "model": "gpt-6-luna",
+      "tokens": {
+        "input": 679,
+        "output": 23
+      },
+      "model_calls": 1,
+      "tool_calls": {},
+      "tool_errors": 0,
+      "claims": [],
+      "ungrounded": [],
+      "constraint_items": 0,
+      "constraint_satisfied": 0,
+      "checks": [
+        {
+          "name": "answered",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "grounding",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "count",
+          "passed": true,
+          "detail": "0 items, expected [..0]"
+        },
+        {
+          "name": "text",
+          "passed": false,
+          "detail": "contains ['def ', '[::-1]']"
+        }
+      ],
+      "passed": false,
+      "attempt": 3
+    },
+    {
+      "id": "l-french-90s-comedy",
+      "tags": [
+        "filters",
+        "language"
+      ],
+      "message": "Je cherche une comédie des années 90",
+      "answer": "Si 1996 vous convient, voici quelques comédies des années 90 :\n\n- **George Carlin: Back in Town** (1996) — Un spectacle de stand-up mordant, plein de réflexions et de blagues irrévérencieuses.\n- **Chris Rock: Bring the Pain** (1996) — Un spectacle de stand-up énergique du comédien Chris Rock.\n- **Shall We Dance?** (1996) — Un comptable malheureux retrouve goût à la vie en prenant secrètement des cours de danse de salon.\n- **Kolya** (1996) — Un célibataire endurci voit son quotidien bouleversé par une rencontre inattendue.",
+      "first_token_s": 2.242695963999722,
+      "total_s": 3.49,
+      "error": null,
+      "model": "gpt-6-luna",
+      "tokens": {
+        "input": 2049,
+        "output": 170
+      },
+      "model_calls": 2,
+      "tool_calls": {
+        "searchMovies": 1
+      },
+      "tool_errors": 0,
+      "claims": [
+        "George Carlin: Back in Town (1996)",
+        "Chris Rock: Bring the Pain (1996)",
+        "Shall We Dance? (1996)",
+        "Kolya (1996)"
+      ],
+      "ungrounded": [],
+      "constraint_items": 4,
+      "constraint_satisfied": 4,
+      "checks": [
+        {
+          "name": "answered",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "grounding",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "count",
+          "passed": true,
+          "detail": "4 items, expected [1..]"
+        },
+        {
+          "name": "constraints",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "text",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true,
+      "attempt": 1
+    },
+    {
+      "id": "l-french-90s-comedy",
+      "tags": [
+        "filters",
+        "language"
+      ],
+      "message": "Je cherche une comédie des années 90",
+      "answer": "Voici quelques comédies des années 90 :\n\n- **Toy Story** (1995) — Une aventure animée pleine d’humour autour d’un jouet jaloux de son nouveau rival.\n- **Living in Oblivion** (1995) — Une comédie sur les galères d’un tournage de film indépendant.\n- **Rendez-vous à Paris** (1995) — Trois histoires de rencontres amoureuses et de coïncidences à Paris.",
+      "first_token_s": 4.400683202000437,
+      "total_s": 5.27,
+      "error": null,
+      "model": "gpt-6-luna",
+      "tokens": {
+        "input": 2002,
+        "output": 123
+      },
+      "model_calls": 2,
+      "tool_calls": {
+        "searchMovies": 1
+      },
+      "tool_errors": 0,
+      "claims": [
+        "Toy Story (1995)",
+        "Living in Oblivion (1995)",
+        "Rendez-vous à Paris (1995)"
+      ],
+      "ungrounded": [
+        {
+          "claim": "Rendez-vous à Paris (1995)",
+          "reason": "not_in_catalog"
+        }
+      ],
+      "constraint_items": 2,
+      "constraint_satisfied": 2,
+      "checks": [
+        {
+          "name": "answered",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "grounding",
+          "passed": false,
+          "detail": "('Rendez-vous à Paris', 1995) (not_in_catalog)"
+        },
+        {
+          "name": "count",
+          "passed": true,
+          "detail": "3 items, expected [1..]"
+        },
+        {
+          "name": "constraints",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "text",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": false,
+      "attempt": 2
+    },
+    {
+      "id": "l-french-90s-comedy",
+      "tags": [
+        "filters",
+        "language"
+      ],
+      "message": "Je cherche une comédie des années 90",
+      "answer": "Je vous recommande **Andaz Apna Apna** (1994) : deux escrocs rivalisent pour conquérir une héritière et finissent par tenter de la sauver d’un criminel.",
+      "first_token_s": 6.880022328999985,
+      "total_s": 7.23,
+      "error": null,
+      "model": "gpt-6-luna",
+      "tokens": {
+        "input": 2022,
+        "output": 66
+      },
+      "model_calls": 2,
+      "tool_calls": {
+        "searchMovies": 1
+      },
+      "tool_errors": 0,
+      "claims": [
+        "Andaz Apna Apna (1994)"
+      ],
+      "ungrounded": [],
+      "constraint_items": 1,
+      "constraint_satisfied": 1,
+      "checks": [
+        {
+          "name": "answered",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "grounding",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "count",
+          "passed": true,
+          "detail": "1 items, expected [1..]"
+        },
+        {
+          "name": "constraints",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "text",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true,
+      "attempt": 3
+    }
+  ]
+}

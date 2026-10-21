@@ -1,0 +1,8 @@
+{
+  "_comment": "USD per 1M tokens, from the OpenAI price list on 2026-10-07 (roadmap Phase 0). Cached input is cheaper, but the token metric doesn't separate it, so run costs are upper bounds.",
+  "per_million_tokens": {
+    "gpt-6-luna": {"input": 0.10, "cached_input": 0.01, "output": 0.50},
+    "gpt-6.1-sol": {"input": 2.00, "cached_input": 0.10, "output": 10.00},
+    "gpt-6-astra": {"input": 10.00, "cached_input": 1.00, "output": 50.00}
+  }
+}

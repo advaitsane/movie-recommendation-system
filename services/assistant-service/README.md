@@ -78,7 +78,7 @@ and recommendation-service, reachable at the defaults below or overridden via en
 | Env var | Default | Notes |
 |---|---|---|
 | `OPENAI_API_KEY` | (empty) | or `spring.ai.openai.api-key` in a gitignored `application-local.yml` with `SPRING_PROFILES_ACTIVE=local` |
-| `OPENAI_CHAT_MODEL` | `gpt-6-luna` | |
+| `OPENAI_CHAT_MODEL` | `gpt-6-luna` | `gpt-6.1-sol` rejects tools on Chat Completions with any `reasoning_effort` (ADR-0014 Update 1) |
 | `OPENAI_REASONING_EFFORT` | `none` | must stay `none` for tool calling through Chat Completions (ADR-0013) |
 | `POSTGRES_URL` | `jdbc:postgresql://localhost:5432/mflix_assistant` | chat memory; `POSTGRES_USER`/`POSTGRES_PASSWORD` default to `mflix` |
 | `SEARCH_SERVICE_URL` | `http://localhost:8082` | |

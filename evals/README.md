@@ -7,6 +7,7 @@ against the model's own account of its answer. ADR-0014 explains the design.
 |---|---|---|---|---|
 | Baseline, 2026-10-21 | 31/34 (91.2%) | 98.9% (86/87) | 98.3% | $0.013 |
 | Prompt v2: titles never translated, stricter off-topic rule | 33/34 (97.1%) | 100% (89/89) | 98.3% | $0.015 |
+| Prompt v2, three more runs to set the CI threshold | 33, 33, 32 | 100% | 98.4% | $0.014 |
 
 Both rows were scored by the current scorers (`--rescore`). The results are in [`results/`](results/).
 
@@ -23,10 +24,19 @@ make eval-test   # the scorers' unit tests, offline
 Python 3.10+ and nothing else: the harness uses only the standard library. It calls the services
 directly (assistant :8086, search :8082, recommendation :8084), so the gateway isn't needed.
 
-The model is assistant-service's setting, not the harness's: `OPENAI_CHAT_MODEL=gpt-6.1-sol` when
-the stack starts. Every run records which model answered.
+The model is assistant-service's setting, not the harness's: `OPENAI_CHAT_MODEL` when the stack
+starts. Every run records which model answered. `gpt-6.1-sol` fails every scenario for now: it
+can't call tools through Chat Completions (ADR-0014 Update 1).
 
 The harness exits 1 if the run stopped early, or if the pass rate is below `--fail-under`.
+
+## In CI
+
+`.github/workflows/assistant-evals.yml` runs the set on `gpt-6-luna` for pull requests that touch
+the assistant, its tools' services or `evals/`, and fails under 91%: the lowest of four runs, less
+one scenario. It starts the whole stack on a fresh runner, so it takes longer than a local run. It
+needs the `OPENAI_API_KEY` repository secret. Run it by hand from the Actions tab to pick another
+model or pass `evals/run.py` arguments.
 
 ## What each scenario checks
 
@@ -83,4 +93,4 @@ run one at a time on a stack nothing else is using.
 - **The claim extractor depends on the answer format.** An answer that names movies without a
   year scores as having no recommendations. Scenarios with `min_items` catch that.
 - **No relevance score yet.** "A tense courtroom drama" passes with any real movie. The LLM judge,
-  calibrated against hand labels, comes next, then the CI gate on `gpt-6.1-sol`.
+  calibrated against hand labels, comes next.

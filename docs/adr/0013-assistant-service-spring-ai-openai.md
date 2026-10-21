@@ -120,7 +120,9 @@ Move the existing services **before upgrading to Spring Boot 4.3**, one service 
   `RestClient` observation doesn't apply to it.)
 - Function tools need `reasoning_effort: none` on Chat Completions (see "Implementation findings"),
   so the assistant gets no model reasoning while it uses tools. Reasoning with tools needs the
-  Responses API, which Spring AI's OpenAI module doesn't use yet.
+  Responses API, which Spring AI's OpenAI module doesn't use yet. On `gpt-6.1-sol` it rules out
+  tools altogether: that model rejects `none`, and rejects tools with any other effort, so
+  every answer fails (ADR-0014 Update 1). The quality baseline above needs the Responses API.
 
 ## Implementation findings
 Building the service (`services/assistant-service`) turned up the following.

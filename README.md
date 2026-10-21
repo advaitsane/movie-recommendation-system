@@ -27,7 +27,7 @@ breaks at 10x) · [the ADRs](docs/adr/README.md) (14 decisions, with their evide
 | Observability | OpenTelemetry traces in Jaeger; 3 Grafana dashboards provisioned as code | [ADR-0008](docs/adr/0008-observability-otel-prometheus-grafana.md); [screenshots in the demo](docs/demo.md#act-2-under-load) |
 | Capacity sized from measurement | per-container memory limits; the stack fits an 8 GB laptop | [ADR-0010](docs/adr/0010-load-test-timeout-budget-mismatch.md) Updates 2, 3, 8, 9 |
 | An LLM assistant that uses the system's own APIs as tools | assistant-service on Spring AI 2, streaming over SSE | [ADR-0013](docs/adr/0013-assistant-service-spring-ai-openai.md); [trace of a turn](docs/demo.md#act-4-the-assistant-v1) |
-| Evals for the LLM assistant, scored against the catalog | 34 scenarios; each recommended title is looked up in the catalog and checked against the request | [`evals/`](evals/): 33/34 passed, 100% of recommended titles exist in the catalog, $0.015 a run on gpt-6-luna ([ADR-0014](docs/adr/0014-assistant-evals.md)) |
+| Evals for the LLM assistant, scored against the catalog | 34 scenarios; each recommended title is looked up in the catalog and checked against the request | [`evals/`](evals/): 33/34 passed, 100% of recommended titles exist in the catalog, $0.015 a run on gpt-6-luna; a [CI gate](.github/workflows/assistant-evals.yml) fails under 91% ([ADR-0014](docs/adr/0014-assistant-evals.md)) |
 
 ## Findings tests didn't catch
 
@@ -135,10 +135,11 @@ links the ADRs behind it.
 | 10 | Chaos testing and hardening | ✅ |
 | 11 | assistant-service (LLM movie assistant with tool calling, Spring AI) | ✅ |
 | 12 | One-command start, Grafana dashboards, a demo, a design review (#25–#32) | ✅ |
-| 13 | Assistant evals scored against the catalog (#34–#35) | ✅ |
+| 13 | Assistant evals scored against the catalog, and a CI gate on them (#34–#37) | ✅ |
 
-Known limitations and what comes next (an LLM judge and a CI gate for the evals, then Kubernetes
-on EKS) are in the [design review](docs/design-review.md#known-limitations).
+Known limitations and what comes next (an LLM judge for the evals, the Responses API so they can
+run on gpt-6.1-sol, then Kubernetes on EKS) are in the
+[design review](docs/design-review.md#known-limitations).
 
 ## Repo layout
 

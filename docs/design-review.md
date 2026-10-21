@@ -292,9 +292,11 @@ These are known and documented, not fixed yet:
 ## Roadmap
 
 - **The assistant, phase 2:** evals scored against the catalog are done
-  ([ADR-0014](adr/0014-assistant-evals.md): 33/34 scenarios pass). Next come an LLM judge for
-  relevance and a CI gate, then a check that answers only name movies the tools returned, then
-  token, cost and time-to-first-token panels.
+  ([ADR-0014](adr/0014-assistant-evals.md): 33/34 scenarios pass), with a CI gate at 91% on
+  gpt-6-luna. Next come an LLM judge for relevance, then a check that answers only name movies
+  the tools returned, then token, cost and time-to-first-token panels. gpt-6.1-sol can't call
+  tools through Chat Completions, so the quality baseline on it waits for a Responses API client
+  ([ADR-0014 Update 1](adr/0014-assistant-evals.md)).
 - **Kubernetes:** Helm charts, a local `kind` cluster, then EKS with Terraform. That gives the
   design budget real headroom, probes for the health checks above, and network policy for the
   gateway bypass.

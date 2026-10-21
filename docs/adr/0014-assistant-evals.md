@@ -1,6 +1,7 @@
 # ADR 0014: Assistant evals scored against the catalog, from outside the service
 
-**Status:** Accepted (deterministic scorers; the LLM judge and the CI gate are follow-ups)
+**Status:** Accepted (deterministic scorers, and a CI gate on gpt-6-luna since Update 1; the LLM
+judge is a follow-up)
 **Date:** 2026-10-21
 
 ## Context
@@ -42,8 +43,8 @@ to `POST /api/assistant/chat` and scores the answer against search-service's cat
 - **Tokens, cost and tool calls come from the service's existing Prometheus counters.** The
   harness takes a delta around each scenario, with scenarios run one at a time. The service has
   no eval-only code path.
-- **`gpt-6-luna` for development runs** (about $0.015 for the 34 scenarios). `gpt-6.1-sol` is for
-  baselines and the CI gate.
+- **`gpt-6-luna` for development runs** (about $0.015 for the 34 scenarios). `gpt-6.1-sol` was to
+  be for baselines and the CI gate; it can't call tools yet (Update 1).
 
 ## Alternatives considered
 - **JUnit evals inside assistant-service**, calling `ChatClient` with instrumented tools. This
@@ -90,7 +91,8 @@ to `POST /api/assistant/chat` and scores the answer against search-service's cat
 - **Runs are sequential and need a dedicated stack.** Parallel runs would mix up the metric deltas.
 - Follow-ups:
   1. the LLM judge for relevance, calibrated on a hand-labelled subset;
-  2. the CI gate on `gpt-6.1-sol`, with a threshold set from repeated runs, not one;
+  2. the CI gate, with a threshold set from repeated runs, not one (done on `gpt-6-luna`,
+     Update 1);
   3. a tool-error count from a source that sees the exception;
   4. multi-turn scenarios.
 
@@ -134,3 +136,57 @@ Prompt v2 added two rules to `prompts/system.st`:
 - **Language when tools fail.** On a cold stack where both searches it tried timed out, one English
   question got its answer in Spanish. It hasn't happened on a warm stack. It's worth a scenario once tool
   failures can be injected.
+
+## Update 1 (2026-10-21): a CI gate on gpt-6-luna, because gpt-6.1-sol can't call tools
+
+**The first runs on `gpt-6.1-sol` failed all 34 scenarios**, each one in under a second with
+`assistant_unavailable`. They spent nothing, because every request was rejected:
+
+- assistant-service sends `reasoning_effort: none`, since `gpt-6-luna` refuses function tools
+  with reasoning on Chat Completions (ADR-0013). `gpt-6.1-sol` rejects `none`: "Supported values
+  are: 'low', 'medium', 'high', and 'xhigh'".
+- With `low`, or with the field left out, it gives the error `gpt-6-luna` gives: "Function tools
+  with reasoning_effort are not supported for gpt-6.1-sol in /v1/chat/completions. To use
+  function tools, use /v1/responses".
+- The same request with a tool through `/v1/responses` worked.
+
+Spring AI 2.0.1's OpenAI module only uses Chat Completions. So no setting makes `gpt-6.1-sol` work
+with this service; it needs a chat model built on the Responses API. The run is kept as
+`results/2026-10-21T155822Z-gpt-6.1-sol-tools-rejected.json`.
+
+The same runs turned up a setup bug: `docker-compose.yml` didn't pass `OPENAI_CHAT_MODEL` to the
+container, so the README's way to switch models had no effect. It's passed now.
+
+**Decision: gate on `gpt-6-luna` now** (`.github/workflows/assistant-evals.yml`), and move the gate
+to `gpt-6.1-sol` once assistant-service is on the Responses API. A gate on the development model
+still catches what it's for: a prompt, tool or retrieval change that breaks grounding or the
+filters. It costs about $0.015 a run instead of about $0.30.
+
+**Threshold: 91%** (`--fail-under 0.91`), so 31/34 passes and 30/34 fails. It's the lowest of four
+runs on prompt v2, less one scenario:
+
+| Run (gpt-6-luna, prompt v2) | Passed | Grounding | Constraints | Cost | p50 / p95 |
+|---|---|---|---|---|---|
+| Prompt v2 (the Evidence above) | 33/34 | 100% (89/89) | 98.3% | $0.0146 | 4.1s / 10.8s |
+| Gate run 1 | 33/34 | 100% (93/93) | 98.4% | $0.0135 | 3.8s / 10.2s |
+| Gate run 2 | 33/34 | 100% (93/93) | 98.4% | $0.0144 | 3.9s / 7.6s |
+| Gate run 3 | 32/34 | 100% (89/89) | 98.4% | $0.0140 | 4.6s / 9.1s |
+
+- `d-first-contact` failed in all four, on *The Visit* as before. It stays in the set: the
+  threshold already counts it, and it starts passing when retrieval is fixed.
+- Run 3's other failure was `p-scifi-fan`. Its one `getMyRecommendations` call failed with "Error
+  while extracting response", and the model answered that it couldn't reach the recommendations.
+  The log has no cause; at 9.2s for the answer, a read timeout is likely. The metrics recorded it
+  as `error="none"` (follow-up 3).
+
+One flaky scenario is the margin. Four runs are few: if the gate fails on a change that shouldn't
+move the score, rerun it, and widen the margin only if that keeps happening.
+
+**What the CI job does differently from `make eval-up`:** a fresh runner has no data volumes, so it
+starts the whole stack with `make up`. That means the ~400 MB download, and embedding about 21k
+plots, which costs a few cents of the embedding API. It then seeds the demo fans and waits until
+users 1 and 7 get personal recommendations instead of the popular fallback. It runs on pull requests
+that touch assistant-, search- or recommendation-service, `evals/` or the compose files, and by
+hand with a choice of model. It needs the `OPENAI_API_KEY` repository secret; pull requests from
+forks don't get secrets, so it skips them. The pass rate, the failed checks and the results file
+go on the run's page.

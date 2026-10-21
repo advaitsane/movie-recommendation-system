@@ -1,0 +1,99 @@
+name: Assistant evals
+
+# The golden set (evals/) against the whole stack, on gpt-6-luna. Separate from CI: it calls the
+# OpenAI API, so it costs money, needs the OPENAI_API_KEY secret, and only runs when a change can
+# move the score. Not gpt-6.1-sol: it can't call tools through Chat Completions, the only OpenAI
+# API Spring AI uses (ADR-0014 Update 1, which also says how the threshold was set).
+on:
+  pull_request:
+    paths:
+      - services/assistant-service/**
+      - services/search-service/**
+      - services/recommendation-service/**
+      - evals/**
+      - docker-compose*.yml
+      - .github/workflows/assistant-evals.yml
+  workflow_dispatch:
+    inputs:
+      model:
+        description: Chat model assistant-service uses
+        default: gpt-6-luna
+      eval_args:
+        description: Extra arguments for evals/run.py, e.g. --tag filters --repeat 3
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: assistant-evals-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  OPENAI_CHAT_MODEL: ${{ inputs.model || 'gpt-6-luna' }}
+  # The lowest pass rate of the repeated baseline runs, less one scenario (ADR-0014 Update 1).
+  FAIL_UNDER: "0.91"
+
+jobs:
+  evals:
+    name: Assistant evals
+    # Pull requests from forks get no secrets, so there would be no key to run with.
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      COMPOSE_PROFILES: assistant
+    steps:
+      - uses: actions/checkout@v7
+      - name: Check for the OpenAI key
+        run: |
+          [[ -n "$OPENAI_API_KEY" ]] || { echo "::error::the OPENAI_API_KEY secret isn't set"; exit 1; }
+      # The whole stack, not `make eval-up`: a fresh runner has no data volumes, and the personal
+      # scenarios need the demo fans' reviews to reach recommendation-service through Kafka.
+      - name: Start the stack
+        run: make up
+      - name: Seed the demo fans
+        run: |
+          scripts/seed-demo-data.sh
+          # Users 1 and 7 are the scenarios' sci-fi and animation fans. Until their ratings have
+          # been consumed, they get the popularity fallback.
+          for i in $(seq 1 40); do
+            sources=$(for u in 1 7; do curl -s "localhost:8084/api/recommendations/$u?limit=8" | jq -r '.[0].source'; done)
+            grep -q POPULAR <<<"$sources" || { echo "recommendations are personal: $sources"; exit 0; }
+            sleep 3
+          done
+          echo "::error::users 1 and 7 still get popular movies"; exit 1
+      - name: Run the evals
+        env:
+          EXTRA_ARGS: ${{ inputs.eval_args }}
+        run: make eval EVAL_ARGS="--fail-under $FAIL_UNDER --label ci $EXTRA_ARGS"
+      - name: Summarize
+        if: always()
+        run: |
+          file=$(ls -t evals/results/*-ci.json 2>/dev/null | head -1)
+          [[ -n "$file" ]] || exit 0
+          jq -r --arg threshold "$FAIL_UNDER" '
+            def pct: if . == null then "n/a" else "\(. * 1000 | round / 10)%" end;
+            .summary as $s
+            | "### Assistant evals on \($s.models | join(", "))",
+              "",
+              "| Passed | Grounding | Constraints | Cost | p50 / p95 |",
+              "|---|---|---|---|---|",
+              "| \($s.passed)/\($s.scenarios) (\($s.pass_rate | pct), threshold \($threshold | tonumber | pct)) | \($s.grounding_rate | pct) | \($s.constraint_rate | pct) | $\($s.cost_usd) | \($s.total_s.p50)s / \($s.total_s.p95)s |",
+              "",
+              (.results | map(select(.passed | not)) | if length > 0 then
+                "Failed:", "", (.[] | "- `\(.id)`: \([.checks[] | select(.passed | not) | "\(.name): \(.detail)"] | join("; "))")
+              else "Every scenario passed." end)
+          ' "$file" >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload the results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: assistant-evals
+          path: evals/results/*-ci.json
+          if-no-files-found: ignore
+          retention-days: 30
+      - name: Service logs
+        if: failure()
+        run: docker compose logs --tail=200 search-service recommendation-service assistant-service

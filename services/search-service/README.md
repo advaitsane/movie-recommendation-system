@@ -11,7 +11,7 @@ catalog CRUD is owned by catalog-service.
 - **Exposes:** `GET /api/movies/search` (text + genre/year/rating filters; paginated with Spring
   Data's standard `page`/`size`/`sort` params, same as catalog-service's `GET /api/movies`),
   `GET /api/movies/search/{id}`, `GET /api/movies/search/vector` (semantic search, `limit`-only —
-  see below), `GET /api/movies/search/{id}/similar` (nearest-neighbor by plot, also `limit`-only).
+  see below — with an optional `genre` pre-filter), `GET /api/movies/search/{id}/similar` (nearest-neighbor by plot, also `limit`-only).
   See `SearchController` or `/swagger-ui.html` for the full contract.
 - **Consumes:** `movie.created` / `movie.updated` / `movie.deleted` from catalog-service via
   Kafka (`MovieEventConsumer`), upserting/deleting idempotently by movie id + event timestamp.

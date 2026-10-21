@@ -16,7 +16,7 @@ service and why it runs on Spring AI 2.0, OpenAI and Jackson 3.
   | Tool | Calls | Used for |
   |---|---|---|
   | `searchMovies` | search-service `GET /api/movies/search` | titles, keywords, genre/year/rating filters |
-  | `findMoviesByDescription` | search-service `GET /api/movies/search/vector` | a described story, mood or theme |
+  | `findMoviesByDescription` | search-service `GET /api/movies/search/vector` | a described story, mood or theme, optionally in one genre |
   | `findSimilarMovies` | search-service `GET /api/movies/search/{id}/similar` | "more like this one" |
   | `getMovieDetails` | search-service `GET /api/movies/search/{id}` | cast, directors, full plot |
   | `getMyRecommendations` | recommendation-service `GET /api/recommendations/{userId}` | "what should I watch?" |

@@ -5,6 +5,7 @@ import static com.mongodb.client.model.search.SearchPath.fieldPath;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.Aggregates;
 import com.mongodb.client.model.Field;
+import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.search.VectorSearchOptions;
 import com.movies.search.config.VectorSearchProperties;
 import com.movies.search.dto.MovieSearchQuery;
@@ -99,7 +100,7 @@ public class SearchServiceImpl implements ISearchService {
     }
 
     @Override
-    public List<VectorSearchResult> vectorSearch(String q, Integer limit) {
+    public List<VectorSearchResult> vectorSearch(String q, String genre, Integer limit) {
         if (q == null || q.trim().isEmpty()) {
             throw new ValidationException("Query text 'q' is required for vector search");
         }
@@ -108,12 +109,31 @@ public class SearchServiceImpl implements ISearchService {
                     "Vector search is unavailable: no embedding provider API key is configured");
         }
 
+        // Resolved before embedding, so an unknown genre costs no embedding call.
+        Bson filter = genre == null || genre.isBlank()
+                ? null
+                : Filters.eq(MovieSearchDocument.Fields.GENRES, resolveGenre(genre.trim()));
         List<Double> queryVector = embeddingService.embedQuery(q)
                 .orElseThrow(() -> new ServiceUnavailableException(
                         "Vector search is unavailable: failed to generate a query embedding"));
 
         int clampedLimit = Math.clamp(limit != null ? limit : 10, 1, 100);
-        return runVectorSearch(queryVector, clampedLimit, null);
+        return runVectorSearch(queryVector, clampedLimit, null, filter);
+    }
+
+    /**
+     * A $vectorSearch pre-filter only matches exact values, so "sci-fi" is mapped to the stored
+     * "Sci-Fi". An unknown genre is a 400 that lists the real ones, so a caller (the assistant's
+     * model, mostly) can retry with a name that exists.
+     */
+    private String resolveGenre(String genre) {
+        List<String> genres = mongoCircuitBreaker.executeSupplier(() -> mongoTemplate.findDistinct(
+                new Query(), MovieSearchDocument.Fields.GENRES, MovieSearchDocument.class, String.class));
+        return genres.stream()
+                .filter(genre::equalsIgnoreCase)
+                .findFirst()
+                .orElseThrow(() -> new ValidationException("Unknown genre '" + genre + "'; known genres: "
+                        + String.join(", ", genres.stream().sorted().toList())));
     }
 
     @Override
@@ -134,25 +154,31 @@ public class SearchServiceImpl implements ISearchService {
         }
 
         int clampedLimit = Math.clamp(limit != null ? limit : 10, 1, 100);
-        return runVectorSearch(plotEmbedding, clampedLimit, objectId);
+        return runVectorSearch(plotEmbedding, clampedLimit, objectId, null);
     }
 
     /**
      * Runs {@code $vectorSearch} for {@code queryVector} and maps the top {@code limit} hits.
      * When {@code excludeId} is set (the "find similar to this movie" case, where the movie
      * itself is always its own nearest neighbor), fetches one extra candidate so excluding it
-     * still leaves {@code limit} results.
+     * still leaves {@code limit} results. A {@code filter} is applied before ranking (the field
+     * must be a filter field of the index, see {@code VectorSearchIndexVerification}).
      */
-    private List<VectorSearchResult> runVectorSearch(List<Double> queryVector, int limit, ObjectId excludeId) {
+    private List<VectorSearchResult> runVectorSearch(
+            List<Double> queryVector, int limit, ObjectId excludeId, Bson filter) {
         long numCandidates = Math.max((long) limit * NUM_CANDIDATES_MULTIPLIER, MIN_NUM_CANDIDATES);
         long fetchLimit = excludeId != null ? limit + 1L : limit;
 
+        VectorSearchOptions options = VectorSearchOptions.approximateVectorSearchOptions(numCandidates);
+        if (filter != null) {
+            options = options.filter(filter);
+        }
         Bson vectorSearchStage = Aggregates.vectorSearch(
                 fieldPath(MovieSearchDocument.Fields.PLOT_EMBEDDING),
                 queryVector,
                 vectorIndexName,
                 fetchLimit,
-                VectorSearchOptions.approximateVectorSearchOptions(numCandidates));
+                options);
         Bson scoreStage = Aggregates.addFields(
                 new Field<>("vectorSearchScore", new Document("$meta", "vectorSearchScore")));
 

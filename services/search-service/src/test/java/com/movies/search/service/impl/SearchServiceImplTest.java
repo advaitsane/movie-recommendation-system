@@ -1,14 +1,18 @@
 package com.movies.search.service.impl;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.mongodb.client.AggregateIterable;
+import com.mongodb.client.MongoCollection;
 import com.movies.search.config.VectorSearchProperties;
 import com.movies.search.dto.MovieSearchQuery;
 import com.movies.search.embedding.EmbeddingService;
@@ -21,11 +25,15 @@ import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import org.bson.BsonDocument;
+import org.bson.Document;
+import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
@@ -141,7 +149,7 @@ class SearchServiceImplTest {
     @Test
     @DisplayName("vectorSearch should reject a blank query")
     void testVectorSearch_BlankQuery() {
-        assertThrows(ValidationException.class, () -> searchService.vectorSearch("   ", 10));
+        assertThrows(ValidationException.class, () -> searchService.vectorSearch("   ", null, 10));
         verify(embeddingService, never()).embedQuery(any());
     }
 
@@ -150,7 +158,7 @@ class SearchServiceImplTest {
     void testVectorSearch_EmbeddingServiceDisabled() {
         when(embeddingService.isEnabled()).thenReturn(false);
 
-        assertThrows(ServiceUnavailableException.class, () -> searchService.vectorSearch("space adventure", 10));
+        assertThrows(ServiceUnavailableException.class, () -> searchService.vectorSearch("space adventure", null, 10));
         verify(embeddingService, never()).embedQuery(any());
     }
 
@@ -160,7 +168,42 @@ class SearchServiceImplTest {
         when(embeddingService.isEnabled()).thenReturn(true);
         when(embeddingService.embedQuery("space adventure")).thenReturn(Optional.empty());
 
-        assertThrows(ServiceUnavailableException.class, () -> searchService.vectorSearch("space adventure", 10));
+        assertThrows(ServiceUnavailableException.class, () -> searchService.vectorSearch("space adventure", null, 10));
+    }
+
+    @Test
+    @DisplayName("vectorSearch should map a genre to its stored spelling and pre-filter on it")
+    @SuppressWarnings("unchecked")
+    void testVectorSearch_GenreFilter() {
+        when(mongoTemplate.findDistinct(any(Query.class), eq("genres"), eq(MovieSearchDocument.class), eq(String.class)))
+                .thenReturn(List.of("Documentary", "Sci-Fi"));
+        when(embeddingService.isEnabled()).thenReturn(true);
+        when(embeddingService.embedQuery("first contact")).thenReturn(Optional.of(List.of(0.1, 0.2)));
+        MongoCollection<Document> collection = mock(MongoCollection.class);
+        AggregateIterable<Document> results = mock(AggregateIterable.class);
+        when(mongoTemplate.getCollection("movies_search")).thenReturn(collection);
+        when(collection.aggregate(any(List.class))).thenReturn(results);
+        when(results.into(any())).thenAnswer(call -> call.getArgument(0));
+
+        assertThat(searchService.vectorSearch("first contact", "sci-fi", 5)).isEmpty();
+
+        ArgumentCaptor<List<Bson>> pipeline = ArgumentCaptor.forClass(List.class);
+        verify(collection).aggregate(pipeline.capture());
+        BsonDocument stage = pipeline.getValue().getFirst().toBsonDocument().getDocument("$vectorSearch");
+        assertEquals(BsonDocument.parse("{\"genres\": \"Sci-Fi\"}"), stage.getDocument("filter"));
+    }
+
+    @Test
+    @DisplayName("vectorSearch should reject an unknown genre, listing the known ones, before embedding")
+    void testVectorSearch_UnknownGenre() {
+        when(mongoTemplate.findDistinct(any(Query.class), eq("genres"), eq(MovieSearchDocument.class), eq(String.class)))
+                .thenReturn(List.of("Sci-Fi", "Drama"));
+        when(embeddingService.isEnabled()).thenReturn(true);
+
+        ValidationException ex = assertThrows(ValidationException.class,
+                () -> searchService.vectorSearch("first contact", "Science Fiction", 5));
+        assertEquals("Unknown genre 'Science Fiction'; known genres: Drama, Sci-Fi", ex.getMessage());
+        verify(embeddingService, never()).embedQuery(any());
     }
 
     @Test

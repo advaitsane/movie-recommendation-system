@@ -73,7 +73,7 @@ class RecommendationServiceImplTest {
         when(recommendationCache.get(anyString())).thenReturn(Optional.empty());
         when(userProfileRepository.findById(anyString())).thenReturn(Optional.empty());
         when(userProfileRepository.findByUserIdNot(anyString())).thenReturn(List.of());
-        when(searchServiceClient.findSimilar(anyString(), anyInt())).thenReturn(List.of());
+        when(searchServiceClient.findSimilarToAny(any(), anyInt())).thenReturn(List.of());
         when(userRatingRepository.findByUserIdInAndRatingGreaterThanEqual(any(), any())).thenReturn(List.of());
         when(userRatingRepository.findByRatingGreaterThanEqual(any())).thenReturn(List.of());
     }
@@ -162,7 +162,7 @@ class RecommendationServiceImplTest {
         when(userRatingRepository.findByUserId("u1")).thenReturn(List.of(
                 rating("u1", "seed1", 5, now)));
 
-        when(searchServiceClient.findSimilar("seed1", 20)).thenReturn(List.of(
+        when(searchServiceClient.findSimilarToAny(List.of("seed1"), 20)).thenReturn(List.of(
                 new SearchSimilarResult(new SearchMovieResult("m1", "Similar A", 2020, null, List.of("Drama")), 0.9),
                 new SearchSimilarResult(new SearchMovieResult("seed1", "Seed", 2020, null, List.of("Drama")), 0.99),
                 new SearchSimilarResult(new SearchMovieResult("m2", "Similar B", 2020, null, List.of("Drama")), 0.5)));
@@ -218,7 +218,7 @@ class RecommendationServiceImplTest {
         when(userRatingRepository.findByUserId("u1")).thenReturn(List.of(
                 rating("u1", "seed1", 5, now)));
 
-        when(searchServiceClient.findSimilar("seed1", 20)).thenReturn(List.of(
+        when(searchServiceClient.findSimilarToAny(List.of("seed1"), 20)).thenReturn(List.of(
                 new SearchSimilarResult(new SearchMovieResult("m1", "Shared", 2020, null, List.of("Drama")), 0.8)));
 
         UserProfile own = UserProfile.builder().userId("u1")

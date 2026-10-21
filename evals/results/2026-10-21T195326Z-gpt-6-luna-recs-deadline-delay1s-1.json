@@ -1,0 +1,89 @@
+{
+  "summary": {
+    "scenarios": 1,
+    "passed": 1,
+    "pass_rate": 1.0,
+    "grounding_rate": 1.0,
+    "claims": 3,
+    "ungrounded": 0,
+    "constraint_rate": null,
+    "constraint_items": 0,
+    "errors": 0,
+    "models": [
+      "gpt-6-luna"
+    ],
+    "tokens": {
+      "input": 1893,
+      "output": 69
+    },
+    "cost_usd": 0.0002,
+    "cost_is_upper_bound": true,
+    "model_calls": 2,
+    "tool_calls": 1,
+    "tool_errors": 0,
+    "first_token_s": {
+      "p50": 9.27,
+      "p95": 9.27
+    },
+    "total_s": {
+      "p50": 9.74,
+      "p95": 9.74
+    },
+    "aborted": null
+  },
+  "results": [
+    {
+      "id": "p-scifi-fan",
+      "tags": [
+        "personal"
+      ],
+      "message": "What should I watch tonight?",
+      "answer": "Based on your past ratings, try **Blade Runner** (1982) for atmospheric sci-fi, **The Matrix** (1999) for action-packed sci-fi, or **Children of Men** (2006) for a tense, thought-provoking drama.",
+      "first_token_s": 9.269662265000079,
+      "total_s": 9.74,
+      "error": null,
+      "model": "gpt-6-luna",
+      "tokens": {
+        "input": 1893,
+        "output": 69
+      },
+      "model_calls": 2,
+      "tool_calls": {
+        "getMyRecommendations": 1
+      },
+      "tool_errors": 0,
+      "claims": [
+        "Blade Runner (1982)",
+        "The Matrix (1999)",
+        "Children of Men (2006)"
+      ],
+      "ungrounded": [],
+      "constraint_items": 0,
+      "constraint_satisfied": 0,
+      "checks": [
+        {
+          "name": "answered",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "grounding",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "count",
+          "passed": true,
+          "detail": "3 items, expected [1..]"
+        },
+        {
+          "name": "subset",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true,
+      "attempt": 1
+    }
+  ]
+}

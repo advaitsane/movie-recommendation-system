@@ -161,7 +161,8 @@ services:
       # vector search takes 5-18s, so compose allows 10s (ADR-0010 Update 9). GATEWAY_TIMEOUT=4s
       # restores the design budget on a bigger host.
       GATEWAY_TIMEOUT: ${GATEWAY_TIMEOUT:-10s}
-      # A recommendation calls search-service up to three times in sequence, 3s read timeout each.
+      # Set for three sequential search calls (ADR-0010 Update 9). They now run in parallel under
+      # a 3s deadline (Update 11), so this could match GATEWAY_TIMEOUT; not yet measured.
       GATEWAY_RECOMMENDATION_TIMEOUT: ${GATEWAY_RECOMMENDATION_TIMEOUT:-12s}
       # Configured base URLs, matching every other service's inter-service call pattern
       # (e.g. search-service's CATALOG_SERVICE_URL) — NOT Eureka discovery. See ADR-0007 for

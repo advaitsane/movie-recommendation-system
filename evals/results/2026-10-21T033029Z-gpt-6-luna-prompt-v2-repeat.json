@@ -1,0 +1,663 @@
+{
+  "summary": {
+    "scenarios": 12,
+    "passed": 9,
+    "pass_rate": 0.75,
+    "grounding_rate": 1.0,
+    "claims": 18,
+    "ungrounded": 0,
+    "constraint_rate": 0.846,
+    "constraint_items": 13,
+    "errors": 0,
+    "models": [
+      "gpt-6-luna"
+    ],
+    "tokens": {
+      "input": 25170,
+      "output": 891
+    },
+    "cost_usd": 0.003,
+    "cost_is_upper_bound": true,
+    "model_calls": 23,
+    "tool_calls": 11,
+    "tool_errors": 0,
+    "first_token_s": {
+      "p50": 2.38,
+      "p95": 4.14
+    },
+    "total_s": {
+      "p50": 2.85,
+      "p95": 4.58
+    },
+    "aborted": null
+  },
+  "results": [
+    {
+      "id": "d-first-contact",
+      "tags": [
+        "description"
+      ],
+      "message": "Quiet science fiction about first contact with aliens",
+      "answer": "- **The Day the Earth Stood Still (1951)** — A thoughtful first-contact story about an alien visitor urging humanity to live peacefully.",
+      "first_token_s": 2.461263600998791,
+      "total_s": 2.74,
+      "error": null,
+      "model": "gpt-6-luna",
+      "tokens": {
+        "input": 2150,
+        "output": 61
+      },
+      "model_calls": 2,
+      "tool_calls": {
+        "findMoviesByDescription": 1
+      },
+      "tool_errors": 0,
+      "claims": [
+        "The Day the Earth Stood Still (1951)"
+      ],
+      "ungrounded": [],
+      "constraint_items": 1,
+      "constraint_satisfied": 1,
+      "checks": [
+        {
+          "name": "answered",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "grounding",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "count",
+          "passed": true,
+          "detail": "1 items, expected [1..]"
+        },
+        {
+          "name": "constraints",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true,
+      "attempt": 1
+    },
+    {
+      "id": "d-first-contact",
+      "tags": [
+        "description"
+      ],
+      "message": "Quiet science fiction about first contact with aliens",
+      "answer": "- **The Visit (2015)** — A subdued, documentary-style take on how governments might handle humanity’s first contact with alien life.\n- **The Day the Earth Stood Still (1951)** — A thoughtful sci-fi classic about an alien visitor delivering a warning to Earth.",
+      "first_token_s": 1.816346973999316,
+      "total_s": 2.33,
+      "error": null,
+      "model": "gpt-6-luna",
+      "tokens": {
+        "input": 2137,
+        "output": 86
+      },
+      "model_calls": 2,
+      "tool_calls": {
+        "findMoviesByDescription": 1
+      },
+      "tool_errors": 0,
+      "claims": [
+        "The Visit (2015)",
+        "The Day the Earth Stood Still (1951)"
+      ],
+      "ungrounded": [],
+      "constraint_items": 2,
+      "constraint_satisfied": 1,
+      "checks": [
+        {
+          "name": "answered",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "grounding",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "count",
+          "passed": true,
+          "detail": "2 items, expected [1..]"
+        },
+        {
+          "name": "constraints",
+          "passed": false,
+          "detail": "The Visit: genres=['Documentary'] not contains 'Sci-Fi'"
+        }
+      ],
+      "passed": false,
+      "attempt": 2
+    },
+    {
+      "id": "d-first-contact",
+      "tags": [
+        "description"
+      ],
+      "message": "Quiet science fiction about first contact with aliens",
+      "answer": "- **The Visit** (2015) — A restrained, documentary-style look at how governments might respond to humanity’s first contact with alien life.",
+      "first_token_s": 2.380471579999721,
+      "total_s": 2.6,
+      "error": null,
+      "model": "gpt-6-luna",
+      "tokens": {
+        "input": 2137,
+        "output": 59
+      },
+      "model_calls": 2,
+      "tool_calls": {
+        "findMoviesByDescription": 1
+      },
+      "tool_errors": 0,
+      "claims": [
+        "The Visit (2015)"
+      ],
+      "ungrounded": [],
+      "constraint_items": 1,
+      "constraint_satisfied": 0,
+      "checks": [
+        {
+          "name": "answered",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "grounding",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "count",
+          "passed": true,
+          "detail": "1 items, expected [1..]"
+        },
+        {
+          "name": "constraints",
+          "passed": false,
+          "detail": "The Visit: genres=['Documentary'] not contains 'Sci-Fi'"
+        }
+      ],
+      "passed": false,
+      "attempt": 3
+    },
+    {
+      "id": "d-stranded-astronaut",
+      "tags": [
+        "description"
+      ],
+      "message": "An astronaut stranded alone in space",
+      "answer": "- **Marooned (1969)** — Three astronauts are stranded in space after their spacecraft’s engines fail, and must be rescued before their oxygen runs out.",
+      "first_token_s": 3.2451783919987065,
+      "total_s": 3.57,
+      "error": null,
+      "model": "gpt-6-luna",
+      "tokens": {
+        "input": 2137,
+        "output": 64
+      },
+      "model_calls": 2,
+      "tool_calls": {
+        "findMoviesByDescription": 1
+      },
+      "tool_errors": 0,
+      "claims": [
+        "Marooned (1969)"
+      ],
+      "ungrounded": [],
+      "constraint_items": 0,
+      "constraint_satisfied": 0,
+      "checks": [
+        {
+          "name": "answered",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "grounding",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "count",
+          "passed": true,
+          "detail": "1 items, expected [1..]"
+        },
+        {
+          "name": "text",
+          "passed": false,
+          "detail": "none of ['Gravity', 'Moon']"
+        }
+      ],
+      "passed": false,
+      "attempt": 1
+    },
+    {
+      "id": "d-stranded-astronaut",
+      "tags": [
+        "description"
+      ],
+      "message": "An astronaut stranded alone in space",
+      "answer": "- **Marooned (1969)** — Three astronauts are stranded in space with their oxygen running out.\n- **Gravity (2013)** — After a catastrophe leaves them adrift in orbit, an astronaut and a medical engineer fight to survive.",
+      "first_token_s": 2.4647580870005186,
+      "total_s": 2.88,
+      "error": null,
+      "model": "gpt-6-luna",
+      "tokens": {
+        "input": 2123,
+        "output": 77
+      },
+      "model_calls": 2,
+      "tool_calls": {
+        "findMoviesByDescription": 1
+      },
+      "tool_errors": 0,
+      "claims": [
+        "Marooned (1969)",
+        "Gravity (2013)"
+      ],
+      "ungrounded": [],
+      "constraint_items": 0,
+      "constraint_satisfied": 0,
+      "checks": [
+        {
+          "name": "answered",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "grounding",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "count",
+          "passed": true,
+          "detail": "2 items, expected [1..]"
+        },
+        {
+          "name": "text",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true,
+      "attempt": 2
+    },
+    {
+      "id": "d-stranded-astronaut",
+      "tags": [
+        "description"
+      ],
+      "message": "An astronaut stranded alone in space",
+      "answer": "**Marooned (1969)** — Three astronauts are stranded in space after their spacecraft’s engines fail, racing against dwindling oxygen.  \n**Gravity (2013)** — An astronaut fights to survive after a catastrophe leaves her adrift in orbit.",
+      "first_token_s": 3.2803706869999587,
+      "total_s": 3.67,
+      "error": null,
+      "model": "gpt-6-luna",
+      "tokens": {
+        "input": 2084,
+        "output": 81
+      },
+      "model_calls": 2,
+      "tool_calls": {
+        "findMoviesByDescription": 1
+      },
+      "tool_errors": 0,
+      "claims": [
+        "Marooned (1969)",
+        "Gravity (2013)"
+      ],
+      "ungrounded": [],
+      "constraint_items": 0,
+      "constraint_satisfied": 0,
+      "checks": [
+        {
+          "name": "answered",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "grounding",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "count",
+          "passed": true,
+          "detail": "2 items, expected [1..]"
+        },
+        {
+          "name": "text",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true,
+      "attempt": 3
+    },
+    {
+      "id": "x-code",
+      "tags": [
+        "off-topic"
+      ],
+      "message": "Write a Python function that reverses a string",
+      "answer": "I can only help with movies.",
+      "first_token_s": 1.014504977998513,
+      "total_s": 1.1,
+      "error": null,
+      "model": "gpt-6-luna",
+      "tokens": {
+        "input": 737,
+        "output": 10
+      },
+      "model_calls": 1,
+      "tool_calls": {},
+      "tool_errors": 0,
+      "claims": [],
+      "ungrounded": [],
+      "constraint_items": 0,
+      "constraint_satisfied": 0,
+      "checks": [
+        {
+          "name": "answered",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "grounding",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "count",
+          "passed": true,
+          "detail": "0 items, expected [..0]"
+        },
+        {
+          "name": "text",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true,
+      "attempt": 1
+    },
+    {
+      "id": "x-code",
+      "tags": [
+        "off-topic"
+      ],
+      "message": "Write a Python function that reverses a string",
+      "answer": "I can only help with movies.",
+      "first_token_s": 1.0416377559995453,
+      "total_s": 1.12,
+      "error": null,
+      "model": "gpt-6-luna",
+      "tokens": {
+        "input": 737,
+        "output": 10
+      },
+      "model_calls": 1,
+      "tool_calls": {},
+      "tool_errors": 0,
+      "claims": [],
+      "ungrounded": [],
+      "constraint_items": 0,
+      "constraint_satisfied": 0,
+      "checks": [
+        {
+          "name": "answered",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "grounding",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "count",
+          "passed": true,
+          "detail": "0 items, expected [..0]"
+        },
+        {
+          "name": "text",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true,
+      "attempt": 2
+    },
+    {
+      "id": "x-code",
+      "tags": [
+        "off-topic"
+      ],
+      "message": "Write a Python function that reverses a string",
+      "answer": "I can only help with movies.",
+      "first_token_s": 0.9491361270011112,
+      "total_s": 0.98,
+      "error": null,
+      "model": "gpt-6-luna",
+      "tokens": {
+        "input": 737,
+        "output": 10
+      },
+      "model_calls": 1,
+      "tool_calls": {},
+      "tool_errors": 0,
+      "claims": [],
+      "ungrounded": [],
+      "constraint_items": 0,
+      "constraint_satisfied": 0,
+      "checks": [
+        {
+          "name": "answered",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "grounding",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "count",
+          "passed": true,
+          "detail": "0 items, expected [..0]"
+        },
+        {
+          "name": "text",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true,
+      "attempt": 3
+    },
+    {
+      "id": "l-french-90s-comedy",
+      "tags": [
+        "filters",
+        "language"
+      ],
+      "message": "Je cherche une comédie des années 90",
+      "answer": "Voici quelques comédies des années 90 :\n\n- **Toy Story** (1995) — Une comédie d’aventure animée autour d’un jouet cowboy jaloux de l’arrivée d’un astronaute.\n- **Living in Oblivion** (1995) — Une comédie sur les péripéties du tournage d’un film indépendant à petit budget.\n- **Rendezvous in Paris** (1995) — Trois histoires de rencontres amoureuses et de coïncidences à Paris.\n- **Rangeela** (1995) — Une jeune femme rêve de devenir une star de Bollywood et se retrouve au cœur d’un triangle amoureux.",
+      "first_token_s": 1.6847707229990192,
+      "total_s": 2.85,
+      "error": null,
+      "model": "gpt-6-luna",
+      "tokens": {
+        "input": 2118,
+        "output": 163
+      },
+      "model_calls": 2,
+      "tool_calls": {
+        "searchMovies": 1
+      },
+      "tool_errors": 0,
+      "claims": [
+        "Toy Story (1995)",
+        "Living in Oblivion (1995)",
+        "Rendezvous in Paris (1995)",
+        "Rangeela (1995)"
+      ],
+      "ungrounded": [],
+      "constraint_items": 4,
+      "constraint_satisfied": 4,
+      "checks": [
+        {
+          "name": "answered",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "grounding",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "count",
+          "passed": true,
+          "detail": "4 items, expected [1..]"
+        },
+        {
+          "name": "constraints",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "text",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true,
+      "attempt": 1
+    },
+    {
+      "id": "l-french-90s-comedy",
+      "tags": [
+        "filters",
+        "language"
+      ],
+      "message": "Je cherche une comédie des années 90",
+      "answer": "Je vous recommande **Toy Story** (1995) : une comédie d’animation pleine d’aventures, où un cowboy-jouet devient jaloux lorsqu’un nouveau jouet spatial arrive.",
+      "first_token_s": 4.1358160540003155,
+      "total_s": 4.58,
+      "error": null,
+      "model": "gpt-6-luna",
+      "tokens": {
+        "input": 5955,
+        "output": 117
+      },
+      "model_calls": 4,
+      "tool_calls": {
+        "searchMovies": 3
+      },
+      "tool_errors": 0,
+      "claims": [
+        "Toy Story (1995)"
+      ],
+      "ungrounded": [],
+      "constraint_items": 1,
+      "constraint_satisfied": 1,
+      "checks": [
+        {
+          "name": "answered",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "grounding",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "count",
+          "passed": true,
+          "detail": "1 items, expected [1..]"
+        },
+        {
+          "name": "constraints",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "text",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true,
+      "attempt": 2
+    },
+    {
+      "id": "l-french-90s-comedy",
+      "tags": [
+        "filters",
+        "language"
+      ],
+      "message": "Je cherche une comédie des années 90",
+      "answer": "Voici quelques comédies des années 90 :\n\n- **Toy Story** (1995) — Une aventure animée drôle sur un jouet jaloux de son nouveau rival.\n- **The Garden** (1995) — Une comédie sur un homme qui quitte son emploi et voit ses problèmes s’accumuler.\n- **Peculiarities of the National Hunt** (1995) — Un Finlandais découvre les traditions de chasse russes avec des compagnons hauts en couleur.\n- **Forgotten Silver** (1995) — Un faux documentaire humoristique sur la vie d’un cinéaste prétendument oublié.",
+      "first_token_s": 1.7818918029988708,
+      "total_s": 2.9,
+      "error": null,
+      "model": "gpt-6-luna",
+      "tokens": {
+        "input": 2118,
+        "output": 153
+      },
+      "model_calls": 2,
+      "tool_calls": {
+        "searchMovies": 1
+      },
+      "tool_errors": 0,
+      "claims": [
+        "Toy Story (1995)",
+        "The Garden (1995)",
+        "Peculiarities of the National Hunt (1995)",
+        "Forgotten Silver (1995)"
+      ],
+      "ungrounded": [],
+      "constraint_items": 4,
+      "constraint_satisfied": 4,
+      "checks": [
+        {
+          "name": "answered",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "grounding",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "count",
+          "passed": true,
+          "detail": "4 items, expected [1..]"
+        },
+        {
+          "name": "constraints",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "text",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true,
+      "attempt": 3
+    }
+  ]
+}

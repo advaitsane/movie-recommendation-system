@@ -1,0 +1,160 @@
+{
+  "summary": {
+    "scenarios": 3,
+    "passed": 2,
+    "pass_rate": 0.667,
+    "grounding_rate": 0.0,
+    "claims": 1,
+    "ungrounded": 1,
+    "constraint_rate": null,
+    "constraint_items": 0,
+    "errors": 0,
+    "models": [
+      "gpt-6-luna"
+    ],
+    "tokens": {
+      "input": 12740,
+      "output": 308
+    },
+    "cost_usd": 0.0014,
+    "cost_is_upper_bound": true,
+    "model_calls": 13,
+    "tool_calls": 9,
+    "tool_errors": 0,
+    "first_token_s": {
+      "p50": 3.67,
+      "p95": 4.3
+    },
+    "total_s": {
+      "p50": 4.47,
+      "p95": 4.54
+    },
+    "aborted": null
+  },
+  "results": [
+    {
+      "id": "g-oppenheimer",
+      "tags": [
+        "not-in-catalog"
+      ],
+      "message": "Tell me about Oppenheimer from 2023",
+      "answer": "I couldn’t find **Oppenheimer (2023)** in the movie catalog, so I can’t provide verified details about it.",
+      "first_token_s": 3.6745711590010615,
+      "total_s": 4.47,
+      "error": null,
+      "model": "gpt-6-luna",
+      "tokens": {
+        "input": 4294,
+        "output": 91
+      },
+      "model_calls": 4,
+      "tool_calls": {
+        "searchMovies": 3
+      },
+      "tool_errors": 0,
+      "claims": [
+        "Oppenheimer (2023)"
+      ],
+      "ungrounded": [
+        {
+          "claim": "Oppenheimer (2023)",
+          "reason": "not_in_catalog"
+        }
+      ],
+      "constraint_items": 0,
+      "constraint_satisfied": 0,
+      "checks": [
+        {
+          "name": "answered",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "grounding",
+          "passed": false,
+          "detail": "('Oppenheimer', 2023) (not_in_catalog)"
+        }
+      ],
+      "passed": false,
+      "attempt": 1
+    },
+    {
+      "id": "g-oppenheimer",
+      "tags": [
+        "not-in-catalog"
+      ],
+      "message": "Tell me about Oppenheimer from 2023",
+      "answer": "I couldn’t find *Oppenheimer* (2023) in the movie catalog, so I can’t provide verified details about it.",
+      "first_token_s": 4.302581882000595,
+      "total_s": 4.54,
+      "error": null,
+      "model": "gpt-6-luna",
+      "tokens": {
+        "input": 4796,
+        "output": 121
+      },
+      "model_calls": 5,
+      "tool_calls": {
+        "searchMovies": 3
+      },
+      "tool_errors": 0,
+      "claims": [],
+      "ungrounded": [],
+      "constraint_items": 0,
+      "constraint_satisfied": 0,
+      "checks": [
+        {
+          "name": "answered",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "grounding",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true,
+      "attempt": 2
+    },
+    {
+      "id": "g-oppenheimer",
+      "tags": [
+        "not-in-catalog"
+      ],
+      "message": "Tell me about Oppenheimer from 2023",
+      "answer": "I couldn’t find *Oppenheimer* (2023) in the movie catalog, so I can’t provide its details.",
+      "first_token_s": 3.2892331240000203,
+      "total_s": 3.53,
+      "error": null,
+      "model": "gpt-6-luna",
+      "tokens": {
+        "input": 3650,
+        "output": 96
+      },
+      "model_calls": 4,
+      "tool_calls": {
+        "searchMovies": 3
+      },
+      "tool_errors": 0,
+      "claims": [],
+      "ungrounded": [],
+      "constraint_items": 0,
+      "constraint_satisfied": 0,
+      "checks": [
+        {
+          "name": "answered",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "grounding",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true,
+      "attempt": 3
+    }
+  ]
+}

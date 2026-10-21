@@ -7,7 +7,7 @@ VUS ?=
 # Chaos experiment to run: a script in chaos/ and its arguments.
 CHAOS ?= 02_service_kill.sh search-service 30
 
-.PHONY: help up up-all assistant eval-up wait down clean ps logs warmup demo smoke load chaos
+.PHONY: help up up-all assistant eval-up wait down clean ps logs warmup demo smoke load chaos eval eval-test
 
 help: ## List the targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-9s %s\n", $$1, $$2}'
@@ -76,3 +76,11 @@ load: warmup ## Warm up, then the k6 load test (3 minutes); VUS=5 for a smaller 
 
 chaos: ## Run a chaos experiment, e.g. make chaos CHAOS="03_network_fault.sh delay search-service 12000 30"
 	chaos/$(CHAOS)
+
+# Scores assistant-service's answers against the catalog (evals/README.md). Needs assistant-,
+# search- and recommendation-service running and real model calls: about $0.015 a run on gpt-6-luna.
+eval: ## Run the assistant evals, e.g. make eval EVAL_ARGS="--tag filters --repeat 3"
+	python3 evals/run.py $(EVAL_ARGS)
+
+eval-test: ## Unit-test the eval scorers (offline, no services or model calls)
+	cd evals && python3 -m unittest discover -s tests -t .

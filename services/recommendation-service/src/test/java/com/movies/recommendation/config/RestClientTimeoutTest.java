@@ -39,6 +39,7 @@ class RestClientTimeoutTest {
                         "search.service.url=" + url,
                         "search.service.connect-timeout-ms=1000",
                         "search.service.read-timeout-ms=300",
+                        "search.service.deadline-ms=3000",
                         "catalog.service.url=" + url,
                         "catalog.service.connect-timeout-ms=1000",
                         "catalog.service.read-timeout-ms=1500");

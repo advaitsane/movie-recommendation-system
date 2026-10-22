@@ -1,0 +1,88 @@
+{
+  "summary": {
+    "scenarios": 1,
+    "passed": 1,
+    "pass_rate": 1.0,
+    "grounding_rate": 1.0,
+    "claims": 2,
+    "ungrounded": 0,
+    "constraint_rate": null,
+    "constraint_items": 0,
+    "errors": 0,
+    "models": [
+      "gpt-6-luna"
+    ],
+    "tokens": {
+      "input": 1893,
+      "output": 47
+    },
+    "cost_usd": 0.0002,
+    "cost_is_upper_bound": true,
+    "model_calls": 2,
+    "tool_calls": 1,
+    "tool_errors": 0,
+    "first_token_s": {
+      "p50": 5.49,
+      "p95": 5.49
+    },
+    "total_s": {
+      "p50": 5.8,
+      "p95": 5.8
+    },
+    "aborted": null
+  },
+  "results": [
+    {
+      "id": "p-scifi-fan",
+      "tags": [
+        "personal"
+      ],
+      "message": "What should I watch tonight?",
+      "answer": "Try **The Matrix (1999)** for action-packed science fiction, or **Blade Runner (1982)** for a moodier sci-fi thriller.",
+      "first_token_s": 5.49172035799711,
+      "total_s": 5.8,
+      "error": null,
+      "model": "gpt-6-luna",
+      "tokens": {
+        "input": 1893,
+        "output": 47
+      },
+      "model_calls": 2,
+      "tool_calls": {
+        "getMyRecommendations": 1
+      },
+      "tool_errors": 0,
+      "claims": [
+        "The Matrix (1999)",
+        "Blade Runner (1982)"
+      ],
+      "ungrounded": [],
+      "constraint_items": 0,
+      "constraint_satisfied": 0,
+      "checks": [
+        {
+          "name": "answered",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "grounding",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "count",
+          "passed": true,
+          "detail": "2 items, expected [1..]"
+        },
+        {
+          "name": "subset",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true,
+      "attempt": 1
+    }
+  ]
+}

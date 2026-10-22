@@ -31,6 +31,7 @@ class ConfigurationPropertiesValidationTest {
                     "search.service.url=http://localhost:8082",
                     "search.service.connect-timeout-ms=2000",
                     "search.service.read-timeout-ms=3000",
+                    "search.service.deadline-ms=3000",
                     "catalog.service.url=http://localhost:8081",
                     "catalog.service.connect-timeout-ms=2000",
                     "catalog.service.read-timeout-ms=10000");
@@ -71,6 +72,12 @@ class ConfigurationPropertiesValidationTest {
     @DisplayName("a zero search-service read timeout fails startup")
     void zeroSearchReadTimeoutFailsStartup() {
         assertStartupFails("search.service.read-timeout-ms=0", "readTimeoutMs");
+    }
+
+    @Test
+    @DisplayName("a zero search-service deadline fails startup")
+    void zeroSearchDeadlineFailsStartup() {
+        assertStartupFails("search.service.deadline-ms=0", "deadlineMs");
     }
 
     @Test

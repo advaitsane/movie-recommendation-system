@@ -178,17 +178,14 @@ public class RecommendationServiceImpl implements IRecommendationService {
         }
 
         Map<String, Double> scores = new HashMap<>();
-        for (String seedMovieId : seedMovieIds) {
-            List<SearchSimilarResult> similar = searchServiceClient.findSimilar(seedMovieId, SIMILAR_FETCH_SIZE);
-            for (SearchSimilarResult result : similar) {
-                if (result.movie() == null || result.movie().id() == null || result.score() == null) {
-                    continue;
-                }
-                if (alreadyRated.contains(result.movie().id())) {
-                    continue;
-                }
-                scores.merge(result.movie().id(), result.score(), Double::sum);
+        for (SearchSimilarResult result : searchServiceClient.findSimilarToAny(seedMovieIds, SIMILAR_FETCH_SIZE)) {
+            if (result.movie() == null || result.movie().id() == null || result.score() == null) {
+                continue;
             }
+            if (alreadyRated.contains(result.movie().id())) {
+                continue;
+            }
+            scores.merge(result.movie().id(), result.score(), Double::sum);
         }
         return scores;
     }

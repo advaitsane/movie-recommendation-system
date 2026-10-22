@@ -117,7 +117,8 @@ resilience4j:
       # case internal budget (connect-timeout-ms 2000 + read-timeout-ms 3000, see
       # SearchClientConfig) is 5s — longer than the gateway's global 4s default. Under load the
       # gateway was aborting (503) before that fallback could return a normal 200. See ADR-0010.
-      # 6s covers one search call, but a recommendation makes up to three in sequence (Update 9).
+      # Its calls to search-service run in parallel under one 3s deadline (Update 11), so 6s
+      # covers them.
       recommendationServiceCB:
         base-config: default
         timeout-duration: ${GATEWAY_RECOMMENDATION_TIMEOUT:6s}

@@ -747,3 +747,49 @@ recommendation-service's 3s timeout, so recommendations lose their content signa
 for a recording: `make clean && make up` once, then `make down && make up` (50s; nothing to
 rebuild), then `make demo`. In that state the demo turned personal 2–5s after the review and showed
 content, collaborative and both signals.
+
+## Update 11 (2026-10-21): the seed calls run in parallel under one deadline
+
+**Finding.** Update 9's second finding came back through the assistant. Its evals failed
+`p-scifi-fan` in 2 of 6 runs: `getMyRecommendations` was cancelled at the assistant's 6s tool
+timeout (ADR-0014). The trace of one failure, with search-service just restarted:
+recommendation-service made its three `/similar` calls in sequence; the first took 3,045ms in
+search-service, missed the 3s read timeout and was dropped after 4.3s; the assistant gave up at
+7.3s; recommendation-service answered at 10.5s and cached the result for the next caller. With
+the cache warm the failure doesn't show, which is why it came and went.
+
+**Decision.** `SearchServiceClient.findSimilarToAny` sends the seed calls together, on virtual
+threads, and waits for all of them under one deadline, `search.service.deadline-ms` (3s). A call
+still running at the deadline is cancelled and adds nothing; each counts once in
+`recommendation.fallback{reason=search_unavailable}`, as a failed call did before. The worst case
+for the content signal goes from 3 × 3s to 3s, and a recommendation fits the assistant's 6s and
+the gateway's 6s design budget.
+- The executor is wrapped with context-propagation's `ContextExecutorService`, so each call
+  carries the request's trace context. The trace shows the three search-service spans under the
+  request, starting together.
+- Rejected: an overall deadline with the calls still in sequence. One slow call would use up the
+  budget for the others, and the content signal would be lost more often than it has to be.
+- Rejected: a Resilience4j `TimeLimiter`. It bounds one call, which is what the read timeout
+  already does; the problem was the sum.
+
+**Evidence.** User 1, the cache cleared before each request, a delay added to search-service's
+packets with `tc netem`:
+
+| search-service | Before (sequential) | After (parallel, 3s deadline) |
+|---|---|---|
+| No delay, first request after a restart | 7.4s | — |
+| No delay, warm | 0.3–0.8s | 0.09–0.42s, all three signals |
+| 200ms delay (one `/similar` 1.5–2.3s) | 4.4–4.6s, all three signals | 1.5–2.3s, all three signals |
+| 1s delay (every `/similar` over 3s) | 9.1s, collaborative only | 2.5–3.1s, collaborative only |
+
+- `p-scifi-fan` through the assistant with the 1s delay and a cold cache: 3 of 3 passed. Each time
+  recommendation-service logged "3 of 3 search-service calls missed the 3000ms deadline" and
+  answered from the collaborative signal. Before the fix this delay would cost 9.1s, past the
+  tool timeout.
+- `SearchServiceClientTest`: one failing call keeps the others' results; three 500ms calls take
+  less than the 1.5s they would take in sequence; a call past the deadline is dropped and counted.
+
+**Not changed.** docker-compose still sets `GATEWAY_RECOMMENDATION_TIMEOUT` to 12s for this
+laptop (Update 9). It could now match `GATEWAY_TIMEOUT`, but that wants a `make smoke` through the
+gateway first. Also fixed on the way: `chaos/03_network_fault.sh` ran `gaiaadm/pumba pumba ...`,
+which the current image rejects ("No help topic for 'pumba'"); its entrypoint is already `pumba`.

@@ -1,0 +1,89 @@
+{
+  "summary": {
+    "scenarios": 1,
+    "passed": 1,
+    "pass_rate": 1.0,
+    "grounding_rate": 1.0,
+    "claims": 3,
+    "ungrounded": 0,
+    "constraint_rate": null,
+    "constraint_items": 0,
+    "errors": 0,
+    "models": [
+      "gpt-6-luna"
+    ],
+    "tokens": {
+      "input": 1893,
+      "output": 66
+    },
+    "cost_usd": 0.0002,
+    "cost_is_upper_bound": true,
+    "model_calls": 2,
+    "tool_calls": 1,
+    "tool_errors": 0,
+    "first_token_s": {
+      "p50": 6.33,
+      "p95": 6.33
+    },
+    "total_s": {
+      "p50": 6.94,
+      "p95": 6.94
+    },
+    "aborted": null
+  },
+  "results": [
+    {
+      "id": "p-scifi-fan",
+      "tags": [
+        "personal"
+      ],
+      "message": "What should I watch tonight?",
+      "answer": "Based on your recommendations, try **Blade Runner** (1982) for moody sci-fi, **The Matrix** (1999) for action-packed cyberpunk, or **Interstellar** (2014) for an epic space adventure.",
+      "first_token_s": 6.328032393998001,
+      "total_s": 6.94,
+      "error": null,
+      "model": "gpt-6-luna",
+      "tokens": {
+        "input": 1893,
+        "output": 66
+      },
+      "model_calls": 2,
+      "tool_calls": {
+        "getMyRecommendations": 1
+      },
+      "tool_errors": 0,
+      "claims": [
+        "Blade Runner (1982)",
+        "The Matrix (1999)",
+        "Interstellar (2014)"
+      ],
+      "ungrounded": [],
+      "constraint_items": 0,
+      "constraint_satisfied": 0,
+      "checks": [
+        {
+          "name": "answered",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "grounding",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "count",
+          "passed": true,
+          "detail": "3 items, expected [1..]"
+        },
+        {
+          "name": "subset",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true,
+      "attempt": 1
+    }
+  ]
+}

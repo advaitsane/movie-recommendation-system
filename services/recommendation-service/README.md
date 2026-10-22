@@ -124,7 +124,9 @@ collaborative/popularity paths, which real Mongo data can actually drive.
 - **search-service call degrades to collaborative-only, not an error** (`SearchServiceClient`,
   `SearchClientConfig`) — bounded connect/read timeouts (2s/3s) plus a catch-all that turns any
   failure (timeout, connection refused, 4xx/5xx, a movie with no embedding yet) into an empty
-  content-based signal. **Verified against three distinct real failures** (outright kill, 8s
+  content-based signal. The up to three seed movies are looked up in parallel under one 3s
+  deadline (`search.service.deadline-ms`), so a slow search-service costs 3s, not 3s per seed
+  ([ADR-0010](../../docs/adr/0010-load-test-timeout-budget-mismatch.md) Update 11). **Verified against three distinct real failures** (outright kill, 8s
   injected network latency, an OOM kill) in
   [ADR-0011](../../docs/adr/0011-chaos-testing.md) Experiments 2-4 — degraded gracefully in all
   three, confirming the pattern [ADR-0010](../../docs/adr/0010-load-test-timeout-budget-mismatch.md)

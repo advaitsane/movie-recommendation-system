@@ -47,11 +47,11 @@ echo "$(date -u +%FT%TZ) injecting $MODE on $CONTAINER"
 case "$MODE" in
   delay)
     docker run --rm -d --name pumba_chaos_run -v /var/run/docker.sock:/var/run/docker.sock \
-      gaiaadm/pumba pumba netem --duration "${DOWNTIME}s" delay --time "$MS" "$CONTAINER" > "$OUT/pumba.log" 2>&1
+      gaiaadm/pumba netem --duration "${DOWNTIME}s" delay --time "$MS" "$CONTAINER" > "$OUT/pumba.log" 2>&1
     ;;
   loss)
     docker run --rm -d --name pumba_chaos_run -v /var/run/docker.sock:/var/run/docker.sock \
-      gaiaadm/pumba pumba netem --duration "${DOWNTIME}s" loss --percent "$PCT" "$CONTAINER" > "$OUT/pumba.log" 2>&1
+      gaiaadm/pumba netem --duration "${DOWNTIME}s" loss --percent "$PCT" "$CONTAINER" > "$OUT/pumba.log" 2>&1
     ;;
   partition)
     docker network disconnect "$NETWORK" "$CONTAINER"

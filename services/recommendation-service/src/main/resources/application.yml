@@ -110,6 +110,10 @@ search:
     # "naive" v1 version, deliberately.
     connect-timeout-ms: 2000
     read-timeout-ms: 3000
+    # One request asks for up to three seed movies' neighbors, in parallel. Past this deadline
+    # the ones still running are dropped, so a slow search-service costs 3s, not 3s per seed
+    # (ADR-0010 Update 11).
+    deadline-ms: ${SEARCH_DEADLINE_MS:3000}
 
 # catalog-service's base URL, used only by the startup backfill of movie_metadata
 # (CatalogBackfillRunner), which loads the seeded movies that never produced a movie.* event.

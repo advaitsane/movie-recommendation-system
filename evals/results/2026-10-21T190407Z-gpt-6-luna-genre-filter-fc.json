@@ -1,0 +1,189 @@
+{
+  "summary": {
+    "scenarios": 3,
+    "passed": 3,
+    "pass_rate": 1.0,
+    "grounding_rate": 1.0,
+    "claims": 3,
+    "ungrounded": 0,
+    "constraint_rate": 1.0,
+    "constraint_items": 3,
+    "errors": 0,
+    "models": [
+      "gpt-6-luna"
+    ],
+    "tokens": {
+      "input": 6540,
+      "output": 211
+    },
+    "cost_usd": 0.0008,
+    "cost_is_upper_bound": true,
+    "model_calls": 6,
+    "tool_calls": 3,
+    "tool_errors": 0,
+    "first_token_s": {
+      "p50": 3.46,
+      "p95": 6.47
+    },
+    "total_s": {
+      "p50": 3.72,
+      "p95": 7.06
+    },
+    "aborted": null
+  },
+  "results": [
+    {
+      "id": "d-first-contact",
+      "tags": [
+        "description"
+      ],
+      "message": "Quiet science fiction about first contact with aliens",
+      "answer": "None of these is an especially close match for *quiet* first contact, but **The Day the Earth Stood Still (1951)** is the closest: its alien visitor arrives with a message urging humanity to live peacefully.",
+      "first_token_s": 6.465138922998449,
+      "total_s": 7.06,
+      "error": null,
+      "model": "gpt-6-luna",
+      "tokens": {
+        "input": 2180,
+        "output": 79
+      },
+      "model_calls": 2,
+      "tool_calls": {
+        "findMoviesByDescription": 1
+      },
+      "tool_errors": 0,
+      "claims": [
+        "The Day the Earth Stood Still (1951)"
+      ],
+      "ungrounded": [],
+      "constraint_items": 1,
+      "constraint_satisfied": 1,
+      "checks": [
+        {
+          "name": "answered",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "grounding",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "count",
+          "passed": true,
+          "detail": "1 items, expected [1..]"
+        },
+        {
+          "name": "constraints",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true,
+      "attempt": 1
+    },
+    {
+      "id": "d-first-contact",
+      "tags": [
+        "description"
+      ],
+      "message": "Quiet science fiction about first contact with aliens",
+      "answer": "- **The Day the Earth Stood Still (1951)** — A thoughtful, restrained first-contact story centered on an alien’s warning that humanity must choose peace.",
+      "first_token_s": 3.2034196210006485,
+      "total_s": 3.63,
+      "error": null,
+      "model": "gpt-6-luna",
+      "tokens": {
+        "input": 2180,
+        "output": 67
+      },
+      "model_calls": 2,
+      "tool_calls": {
+        "findMoviesByDescription": 1
+      },
+      "tool_errors": 0,
+      "claims": [
+        "The Day the Earth Stood Still (1951)"
+      ],
+      "ungrounded": [],
+      "constraint_items": 1,
+      "constraint_satisfied": 1,
+      "checks": [
+        {
+          "name": "answered",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "grounding",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "count",
+          "passed": true,
+          "detail": "1 items, expected [1..]"
+        },
+        {
+          "name": "constraints",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true,
+      "attempt": 2
+    },
+    {
+      "id": "d-first-contact",
+      "tags": [
+        "description"
+      ],
+      "message": "Quiet science fiction about first contact with aliens",
+      "answer": "- **The Day the Earth Stood Still (1951)** — A thoughtful, restrained first-contact story in which an alien urges humanity to choose peace.",
+      "first_token_s": 3.4620969019997574,
+      "total_s": 3.72,
+      "error": null,
+      "model": "gpt-6-luna",
+      "tokens": {
+        "input": 2180,
+        "output": 65
+      },
+      "model_calls": 2,
+      "tool_calls": {
+        "findMoviesByDescription": 1
+      },
+      "tool_errors": 0,
+      "claims": [
+        "The Day the Earth Stood Still (1951)"
+      ],
+      "ungrounded": [],
+      "constraint_items": 1,
+      "constraint_satisfied": 1,
+      "checks": [
+        {
+          "name": "answered",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "grounding",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "count",
+          "passed": true,
+          "detail": "1 items, expected [1..]"
+        },
+        {
+          "name": "constraints",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true,
+      "attempt": 3
+    }
+  ]
+}

@@ -50,7 +50,7 @@ public class SearchController {
     public ResponseEntity<Page<MovieSearchResult>> search(
             @Parameter(description = "Text search query (searches title, plot, fullplot)")
             @RequestParam(required = false) String q,
-            @Parameter(description = "Filter by genre (case-insensitive partial match)")
+            @Parameter(description = "Filter by genre, for example Sci-Fi (case-insensitive exact name; 400 if unknown)")
             @RequestParam(required = false) String genre,
             @Parameter(description = "Filter by exact year")
             @RequestParam(required = false) Integer year,
@@ -89,6 +89,7 @@ public class SearchController {
         description = "Embeds the query text with the configured embedding provider (Voyage AI or " +
                      "OpenAI) and runs Atlas $vectorSearch against movies_search.plotEmbedding, " +
                      "returning the closest matches by plot meaning rather than keyword overlap. " +
+                     "An optional genre pre-filters the candidates, so the top N are all of that genre. " +
                      "Returns 503 if that provider isn't configured. " +
                      "Deliberately limit-only, not page/pageable, unlike GET /api/movies/search: " +
                      "$vectorSearch is approximate nearest-neighbor (ANN) over a candidate pool, not " +
@@ -100,9 +101,11 @@ public class SearchController {
     public ResponseEntity<List<VectorSearchResult>> vectorSearch(
             @Parameter(description = "Free-text description of what to search for", required = true)
             @RequestParam String q,
+            @Parameter(description = "Only movies of this genre, for example Sci-Fi (case-insensitive exact name; 400 if unknown)")
+            @RequestParam(required = false) String genre,
             @Parameter(description = "Number of results to return (default: 10, max: 100)")
             @RequestParam(defaultValue = "10") Integer limit) {
-        return ResponseEntity.ok(searchService.vectorSearch(q, limit));
+        return ResponseEntity.ok(searchService.vectorSearch(q, genre, limit));
     }
 
     @Operation(

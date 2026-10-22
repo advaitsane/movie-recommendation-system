@@ -14,7 +14,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
- * Startup creation of the compound text index (title/plot/fullplot), year index and
+ * Startup creation of the compound text index (title/plot/fullplot), year index, genres index and
  * embedding-missing index that this service's queries depend on. The Atlas Vector Search index
  * is handled separately by {@link VectorSearchIndexVerification} (a different, mongot-backed
  * index type). Non-blocking: failures are logged, not thrown, so a misconfigured Mongo doesn't
@@ -28,6 +28,7 @@ public class SearchIndexVerification {
     private static final String COLLECTION = "movies_search";
     private static final String TEXT_INDEX_NAME = "movie_text_index";
     private static final String YEAR_INDEX_NAME = "year_index";
+    private static final String GENRES_INDEX_NAME = "genres_index";
     private static final String EMBEDDING_MISSING_INDEX_NAME = "embedding_missing_index";
 
     private final MongoDatabase database;
@@ -44,6 +45,7 @@ public class SearchIndexVerification {
             MongoCollection<Document> collection = database.getCollection(COLLECTION);
             createTextIndex(collection);
             createYearIndex(collection);
+            createGenresIndex(collection);
             createEmbeddingMissingIndex(collection);
             logger.info("Index verification completed successfully");
         } catch (Exception e) {
@@ -76,6 +78,23 @@ public class SearchIndexVerification {
                 Indexes.ascending(MovieSearchDocument.Fields.YEAR),
                 new IndexOptions().name(YEAR_INDEX_NAME).background(true));
         logger.info("Year index '{}' created", YEAR_INDEX_NAME);
+    }
+
+    /**
+     * Without it, the genre filter and the distinct genres behind it read every document,
+     * embeddings included: 37s for the distinct on a starved host, enough to page out the vector
+     * index (ADR-0002 update, 2026-10-21). With it they read index keys only.
+     */
+    private void createGenresIndex(MongoCollection<Document> collection) {
+        if (indexExists(collection, GENRES_INDEX_NAME)) {
+            logger.info("Genres index '{}' already exists", GENRES_INDEX_NAME);
+            return;
+        }
+
+        collection.createIndex(
+                Indexes.ascending(MovieSearchDocument.Fields.GENRES),
+                new IndexOptions().name(GENRES_INDEX_NAME).background(true));
+        logger.info("Genres index '{}' created", GENRES_INDEX_NAME);
     }
 
     /**

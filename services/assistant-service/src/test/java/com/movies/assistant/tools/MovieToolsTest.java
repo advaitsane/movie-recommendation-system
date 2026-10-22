@@ -109,12 +109,37 @@ class MovieToolsTest {
     }
 
     @Test
+    @DisplayName("findMoviesByDescription sends the genre only when it is set")
+    void descriptionSendsGenreWhenSet() {
+        stub.enqueueJson("/api/movies/search/vector", 200, "[]");
+        stub.enqueueJson("/api/movies/search/vector", 200, "[]");
+
+        tools.findMoviesByDescription("first contact", "Sci-Fi");
+        tools.findMoviesByDescription("first contact", " ");
+
+        assertThat(stub.requests()).extracting(StubHttpServer.Recorded::query)
+                .containsExactly("q=first%20contact&limit=5&genre=Sci-Fi", "q=first%20contact&limit=5");
+    }
+
+    @Test
+    @DisplayName("a 400 passes the service's message on, so the model can fix its arguments")
+    void badRequestPassesTheMessageOn() {
+        stub.enqueueJson("/api/movies/search/vector", 400,
+                "{\"errorMessage\":\"Unknown genre 'Science Fiction'; known genres: Drama, Sci-Fi\"}");
+
+        assertThatThrownBy(() -> tools.findMoviesByDescription("first contact", "Science Fiction"))
+                .isInstanceOf(ToolCallException.class)
+                .hasMessage("Semantic search can't answer this request (400: Unknown genre 'Science Fiction'; "
+                        + "known genres: Drama, Sci-Fi); try a different tool or different arguments");
+    }
+
+    @Test
     @DisplayName("an unreachable service is reported as unavailable, without the underlying error")
     void unreachableServiceIsUnavailable() {
         RestClient unreachable = RestClient.builder().baseUrl("http://localhost:1").build();
         MovieTools offline = new MovieTools(unreachable, unreachable, new AssistantProperties(20, 5, Duration.ofDays(90)));
 
-        assertThatThrownBy(() -> offline.findMoviesByDescription("heist"))
+        assertThatThrownBy(() -> offline.findMoviesByDescription("heist", null))
                 .isInstanceOf(ToolCallException.class)
                 .hasMessage("Semantic search is unavailable right now");
     }

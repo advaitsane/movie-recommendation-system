@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.web.servlet.MockMvc;
@@ -42,6 +43,17 @@ class SearchServiceIntegrationTest {
 
     @Autowired
     private MovieSearchRepository repository;
+
+    @Autowired
+    private MongoTemplate mongoTemplate;
+
+    @Test
+    @DisplayName("Startup creates the indexes the queries rely on, genres included")
+    void startupCreatesIndexes() {
+        assertThat(mongoTemplate.getCollection("movies_search").listIndexes())
+                .extracting(index -> index.getString("name"))
+                .contains("movie_text_index", "year_index", "genres_index", "embedding_missing_index");
+    }
 
     @Test
     @DisplayName("Indexes a movie directly, then finds it via the REST search endpoint")

@@ -21,6 +21,10 @@ import org.springframework.stereotype.Component;
  * asynchronous, so this only issues the create call; until it finishes, {@code $vectorSearch}
  * returns no results, not an error. {@code numDimensions} comes from
  * {@link EmbeddingService#getDimensions()} so it can never drift from what's actually stored.
+ * {@code genres} is a filter field, so vector search can pre-filter by genre. An index created
+ * before that is dropped and created again: this mongot rejects updateSearchIndex for a vector
+ * index ("mappings" is required), and building a second index beside it would hold two in
+ * mongot's memory at once.
  */
 @Component
 public class VectorSearchIndexVerification {
@@ -48,16 +52,23 @@ public class VectorSearchIndexVerification {
 
         try {
             MongoCollection<Document> collection = database.getCollection(COLLECTION);
-            if (vectorIndexExists(collection)) {
-                logger.info("Vector search index '{}' already exists", indexName);
-                return;
-            }
-
             int embeddingDimensions = embeddingService.getDimensions();
             SearchIndexDefinition definition = SearchIndexDefinition.vectorSearch(
                     VectorSearchIndexFields.vectorField(MovieSearchDocument.Fields.PLOT_EMBEDDING)
                             .numDimensions(embeddingDimensions)
-                            .similarity("cosine"));
+                            .similarity("cosine"),
+                    VectorSearchIndexFields.filterField(MovieSearchDocument.Fields.GENRES));
+
+            Document existing = findVectorIndex(collection);
+            if (existing != null && hasGenreFilter(existing)) {
+                logger.info("Vector search index '{}' already exists", indexName);
+                return;
+            }
+            if (existing != null) {
+                collection.dropSearchIndex(indexName);
+                logger.warn("Vector search index '{}' has no '{}' filter field: dropped, to be created again",
+                        indexName, MovieSearchDocument.Fields.GENRES);
+            }
 
             // The 2-arg SearchIndexModel(name, VectorSearchIndexDefinition) constructor doesn't
             // stamp `type: "vectorSearch"` into the wire command against this mongot version —
@@ -77,12 +88,21 @@ public class VectorSearchIndexVerification {
         }
     }
 
-    private boolean vectorIndexExists(MongoCollection<Document> collection) {
+    private Document findVectorIndex(MongoCollection<Document> collection) {
         for (Document index : collection.listSearchIndexes()) {
             if (indexName.equals(index.getString("name"))) {
-                return true;
+                return index;
             }
         }
-        return false;
+        return null;
+    }
+
+    static boolean hasGenreFilter(Document index) {
+        Document definition = index.get("latestDefinition", Document.class);
+        List<Document> fields = definition == null
+                ? List.of()
+                : definition.getList("fields", Document.class, List.of());
+        return fields.stream().anyMatch(field -> "filter".equals(field.getString("type"))
+                && MovieSearchDocument.Fields.GENRES.equals(field.getString("path")));
     }
 }

@@ -50,7 +50,7 @@ public class SearchController {
     public ResponseEntity<Page<MovieSearchResult>> search(
             @Parameter(description = "Text search query (searches title, plot, fullplot)")
             @RequestParam(required = false) String q,
-            @Parameter(description = "Filter by genre (case-insensitive partial match)")
+            @Parameter(description = "Filter by genre, for example Sci-Fi (case-insensitive exact name; 400 if unknown)")
             @RequestParam(required = false) String genre,
             @Parameter(description = "Filter by exact year")
             @RequestParam(required = false) Integer year,

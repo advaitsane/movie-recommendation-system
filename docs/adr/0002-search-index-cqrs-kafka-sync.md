@@ -331,3 +331,20 @@ kill under that limit). While the index rebuilds, vector search returns no resul
 - `SearchServiceImplTest` checks the filter in the pipeline and the 400 for an unknown genre
   (made before any embedding call). `VectorSearchIndexVerificationTest` covers create, recreate
   and leave alone.
+
+**Genres get an index, and the keyword search's genre filter matches exactly.** Resolving the
+genre runs `distinct('genres')`, and with no index on `genres` that read all 21,349 documents,
+embeddings included (12 KB each): 37.6 s on the starved local host, 11.8 s in Mongo's slow log.
+Every filtered vector search paid it, and the reads pushed the vector index out of memory. CI
+passed because its runner had memory to spare. `SearchIndexVerification` now creates
+`genres_index` (ascending on `genres`). The keyword search's genre filter was a case-insensitive
+regex, which can't use index bounds: with the index the planner scanned every key and still
+fetched 21,237 documents, 1.2–2.0 s against 0.6–1.2 s for a plain collection scan. So that
+filter now resolves the genre the same way and matches it exactly. A partial name (`sci`) no
+longer matches `Sci-Fi`. It's a 400 that lists the real genres, which the assistant already
+passes to the model.
+
+| Query (local stack, warm) | Before | After |
+|---|---|---|
+| `distinct('genres')` | COLLSCAN, 21,349 docs | DISTINCT_SCAN, 26 keys, 0 docs, 57 ms |
+| keyword genre filter | regex COLLSCAN, 21,349 docs, 0.6–1.2 s | exact IXSCAN, 958 docs (Sci-Fi), 26–80 ms |

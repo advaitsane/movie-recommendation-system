@@ -115,6 +115,32 @@ class SearchServiceImplTest {
     }
 
     @Test
+    @DisplayName("Should map a genre to its stored spelling and match it exactly")
+    void testSearchMovies_GenreFilter() {
+        when(mongoTemplate.findDistinct(any(Query.class), eq("genres"), eq(MovieSearchDocument.class), eq(String.class)))
+                .thenReturn(List.of("Sci-Fi", "Drama"));
+        when(mongoTemplate.find(any(Query.class), eq(MovieSearchDocument.class))).thenReturn(List.of());
+
+        searchService.searchMovies(MovieSearchQuery.builder().genre(" sci-fi ").build(), PageRequest.of(0, 20));
+
+        ArgumentCaptor<Query> captor = ArgumentCaptor.forClass(Query.class);
+        verify(mongoTemplate).find(captor.capture(), eq(MovieSearchDocument.class));
+        assertEquals(new Document("genres", "Sci-Fi"), captor.getValue().getQueryObject());
+    }
+
+    @Test
+    @DisplayName("Should reject an unknown genre, listing the known ones, without querying")
+    void testSearchMovies_UnknownGenre() {
+        when(mongoTemplate.findDistinct(any(Query.class), eq("genres"), eq(MovieSearchDocument.class), eq(String.class)))
+                .thenReturn(List.of("Sci-Fi", "Drama"));
+
+        ValidationException ex = assertThrows(ValidationException.class, () -> searchService.searchMovies(
+                MovieSearchQuery.builder().genre("Sci").build(), PageRequest.of(0, 20)));
+        assertEquals("Unknown genre 'Sci'; known genres: Drama, Sci-Fi", ex.getMessage());
+        verify(mongoTemplate, never()).find(any(Query.class), eq(MovieSearchDocument.class));
+    }
+
+    @Test
     @DisplayName("Should get movie by valid ID")
     void testGetById_ValidId() {
         String validId = testId.toHexString();

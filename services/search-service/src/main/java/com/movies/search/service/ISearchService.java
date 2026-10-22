@@ -28,11 +28,13 @@ public interface ISearchService {
 
     /**
      * Semantic search: embeds {@code q} via the configured embedding provider and returns the
-     * {@code limit} nearest movies by plot similarity. Throws {@code ServiceUnavailableException}
+     * {@code limit} nearest movies by plot similarity. A non-blank {@code genre} restricts the
+     * search to movies of that genre (case-insensitive, but otherwise an exact genre name: an
+     * unknown one throws {@code ValidationException}). Throws {@code ServiceUnavailableException}
      * if the provider isn't configured. Deliberately {@code limit}-only, not {@code Page}: ANN
      * search over a candidate pool has no well-defined total-match count to page against.
      */
-    List<VectorSearchResult> vectorSearch(String q, Integer limit);
+    List<VectorSearchResult> vectorSearch(String q, String genre, Integer limit);
 
     /**
      * Finds movies with the most similar plot to the movie identified by {@code id}, using its

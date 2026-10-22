@@ -296,3 +296,55 @@ change went in, and a fresh start never has any. If it's ever needed, it's one s
 At the time the Docker VM (3.82 GiB) had its 1 GiB of swap full and 112 MB free, after
 search-service's image had just been rebuilt inside it. Swapped and evicted pages come back as
 major faults on the next search. Its sizing is in ADR-0010.
+
+## Update: vector search can filter by genre (2026-10-21)
+
+**Context.** The assistant's evals (ADR-0014) failed `d-first-contact` ("quiet science fiction
+about first contact") in every run. Vector search ranked *The Visit* (2015, Documentary) first
+and *Intruders* (1992, Biography/Horror/Mystery) second, and the model recommended them. A
+plot embedding can't tell a documentary about aliens from a film about them. Only the keyword
+search had a genre filter.
+
+**Decision.** `GET /api/movies/search/vector` takes an optional `genre`, applied as a
+`$vectorSearch` pre-filter, so the top N are all of that genre. Filtering after the search
+would return fewer than N. A pre-filter needs the field in the index, so `genres` is now a
+`filter` field of `movie_vector_index`.
+- A pre-filter matches exact values only. `sci-fi` is mapped to the stored `Sci-Fi` against the
+  distinct genres, and an unknown genre is a 400 that lists the real ones. The assistant passes
+  that message to the model, so it can retry with a name that exists.
+- `findSimilar` has no filter. "Movies like Inception" names no genre.
+
+**An existing index is dropped and created again.** This mongot (atlas-local 8.3.8) rejects
+`updateSearchIndex` for a vector index with `"mappings" is required`, from the driver and from
+a raw command alike, and the command has no `type` field to fix that. That's the same bug as
+`createSearchIndexes` without `SearchIndexType.vectorSearch()`. The other way, building a second
+index under a new name and then switching, would hold two indexes in mongot's memory at once,
+and mflix-mongo was at 893 MiB of its 1.25 GiB before the change (ADR-0010 Update 8 had an OOM
+kill under that limit). While the index rebuilds, vector search returns no results.
+
+**Evidence.**
+- On the local stack: search-service restarted, dropped the old index and created the new one.
+  It was `READY` 35 s later, with mflix-mongo at 1.04 GiB at the peak and no restart.
+- The same query, top 5: without a genre, *The Visit*, *Intruders*, *Alien Nation*, *The
+  Invasion*, *The Arrival*; with `genre=sci-fi`, *Alien Nation*, *The Invasion*, *The Arrival*,
+  *The Andromeda Strain*, *Alien Trespass*. Same scores, the two non-Sci-Fi movies gone.
+- `SearchServiceImplTest` checks the filter in the pipeline and the 400 for an unknown genre
+  (made before any embedding call). `VectorSearchIndexVerificationTest` covers create, recreate
+  and leave alone.
+
+**Genres get an index, and the keyword search's genre filter matches exactly.** Resolving the
+genre runs `distinct('genres')`, and with no index on `genres` that read all 21,349 documents,
+embeddings included (12 KB each): 37.6 s on the starved local host, 11.8 s in Mongo's slow log.
+Every filtered vector search paid it, and the reads pushed the vector index out of memory. CI
+passed because its runner had memory to spare. `SearchIndexVerification` now creates
+`genres_index` (ascending on `genres`). The keyword search's genre filter was a case-insensitive
+regex, which can't use index bounds: with the index the planner scanned every key and still
+fetched 21,237 documents, 1.2–2.0 s against 0.6–1.2 s for a plain collection scan. So that
+filter now resolves the genre the same way and matches it exactly. A partial name (`sci`) no
+longer matches `Sci-Fi`. It's a 400 that lists the real genres, which the assistant already
+passes to the model.
+
+| Query (local stack, warm) | Before | After |
+|---|---|---|
+| `distinct('genres')` | COLLSCAN, 21,349 docs | DISTINCT_SCAN, 26 keys, 0 docs, 57 ms |
+| keyword genre filter | regex COLLSCAN, 21,349 docs, 0.6–1.2 s | exact IXSCAN, 958 docs (Sci-Fi), 26–80 ms |

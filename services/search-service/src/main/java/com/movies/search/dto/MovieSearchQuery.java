@@ -17,7 +17,7 @@ public record MovieSearchQuery(
     String q,
 
     /**
-     * Filter by genre (case-insensitive partial match).
+     * Filter by genre (case-insensitive exact name; 400 if unknown).
      */
     String genre,
 

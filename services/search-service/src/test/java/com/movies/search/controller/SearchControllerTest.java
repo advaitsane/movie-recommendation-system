@@ -121,7 +121,7 @@ class SearchControllerTest {
                 .movie(MovieSearchResult.from(testDocument))
                 .score(0.92)
                 .build();
-        when(searchService.vectorSearch("a heist movie", 10)).thenReturn(List.of(result));
+        when(searchService.vectorSearch("a heist movie", null, 10)).thenReturn(List.of(result));
 
         mockMvc.perform(get("/api/movies/search/vector").param("q", "a heist movie"))
                 .andExpect(status().isOk())
@@ -130,9 +130,20 @@ class SearchControllerTest {
     }
 
     @Test
+    @DisplayName("GET /api/movies/search/vector - Should pass the genre on")
+    void testVectorSearch_WithGenre() throws Exception {
+        when(searchService.vectorSearch("first contact", "sci-fi", 5)).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/movies/search/vector")
+                        .param("q", "first contact").param("genre", "sci-fi").param("limit", "5"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
+    }
+
+    @Test
     @DisplayName("GET /api/movies/search/vector - Should return 503 when Voyage isn't configured")
     void testVectorSearch_ServiceUnavailable() throws Exception {
-        when(searchService.vectorSearch("a heist movie", 10))
+        when(searchService.vectorSearch("a heist movie", null, 10))
                 .thenThrow(new ServiceUnavailableException("Vector search is unavailable: VOYAGE_API_KEY is not configured"));
 
         mockMvc.perform(get("/api/movies/search/vector").param("q", "a heist movie"))

@@ -116,7 +116,7 @@ All runs on `gpt-6-luna`, 34 scenarios, scored by the final scorers (`--rescore`
 | `f-thriller-2005-7` | **Scorer.** It read "**V for Vendetta** (2005, 8.2)" as no claim. All five movies were valid. | — | Extractor fixed, with a test |
 | `x-code` | **Prompt.** Asked for a Python function, the model wrote one. | 3/3 failed | Prompt v2: 4/4 pass |
 | `l-french-90s-comedy` | **Prompt.** It translated the catalog's "Rendezvous in Paris" to "Rendez-vous à Paris". | failed 2 of 4 | Prompt v2: 4/4 pass |
-| `d-first-contact` | **Retrieval and model.** Vector search ranks *The Visit* (2015, Documentary) above seven sci-fi films. The model sees the genre and picks it anyway, often alone. | 2 of 3 still fail | Open: a genre filter on vector search, or `MovieQuery` (step 3) |
+| `d-first-contact` | **Retrieval and model.** Vector search ranks *The Visit* (2015, Documentary) above seven sci-fi films. The model sees the genre and picks it anyway, often alone. | 2 of 3 still fail | A genre filter on vector search: 4/4 pass (Update 2) |
 
 Prompt v2 added two rules to `prompts/system.st`:
 - "never translate a title";
@@ -190,3 +190,28 @@ that touch assistant-, search- or recommendation-service, `evals/` or the compos
 hand with a choice of model. It needs the `OPENAI_API_KEY` repository secret; pull requests from
 forks don't get secrets, so it skips them. The pass rate, the failed checks and the results file
 go on the run's page.
+
+## Update 2 (2026-10-21): a genre filter on vector search fixes `d-first-contact`
+
+`d-first-contact` failed in every run on *The Visit* (2015, Documentary), which vector search
+ranked first. `findMoviesByDescription` now takes an optional `genre`, which search-service
+applies as a `$vectorSearch` pre-filter (ADR-0002, update of the same date). The tool's
+description says to set it when the user names a genre; the prompt is unchanged.
+
+| Run (gpt-6-luna) | Passed | Grounding | Constraints | Cost | p50 / p95 |
+|---|---|---|---|---|---|
+| Gate runs 1–3 (Update 1) | 33, 33, 32 /34 | 100% | 98.4% | $0.014 | 3.8–4.6s / 7.6–10.2s |
+| Genre filter | 33/34 | 100% (89/89) | 100% (62/62) | $0.0139 | 4.3s / 8.4s |
+
+- `d-first-contact` passed 4 of 4: 3 alone, 1 in the gate run. The traces show the model sending
+  `genre=Sci-Fi` without being asked.
+- The scenario passes, but the answers are thin: three of the four recommend only *The Day the
+  Earth Stood Still* (1951). The scenario asks for at least one movie, so the scorers can't see
+  that. Whether one is enough is a relevance question, for the judge (follow-up 1).
+- The one failure was `p-scifi-fan` again, as in gate run 3: its `getMyRecommendations` call to
+  recommendation-service was cancelled ("Request cancelled", the read timeout), and nothing in
+  this change touches that path. Two of five runs now, so it is the next thing to look at
+  rather than noise.
+- This is the evidence step 3 asked for. With the filter in, `MovieQuery` has one reason left,
+  year ranges ("90s"), and those scenarios pass today.
+

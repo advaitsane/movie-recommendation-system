@@ -77,14 +77,19 @@ public class MovieTools {
     @Tool(description = "Semantic search: finds movies whose plot matches a description of what the "
             + "user wants, such as 'a heist that goes wrong' or 'quiet science fiction about "
             + "first contact'. Use it when the request describes a story, mood or theme rather than "
-            + "a title or keyword.")
+            + "a title or keyword. Set genre when the user names one, so only movies of that genre "
+            + "come back.")
     public List<MovieSummary> findMoviesByDescription(
-            @ToolParam(description = "A description of the story, mood or theme") String description) {
+            @ToolParam(description = "A description of the story, mood or theme") String description,
+            @ToolParam(required = false, description = "Genre, for example Drama, Comedy or Sci-Fi") String genre) {
         VectorHit[] hits = call("Semantic search", () -> searchRestClient.get()
-                .uri(uri -> uri.path("/api/movies/search/vector")
-                        .queryParam("q", description)
-                        .queryParam("limit", resultLimit)
-                        .build())
+                .uri(uri -> {
+                    UriBuilder builder = uri.path("/api/movies/search/vector")
+                            .queryParam("q", description)
+                            .queryParam("limit", resultLimit);
+                    queryParamIfPresent(builder, "genre", genre);
+                    return builder.build();
+                })
                 .retrieve()
                 .body(VectorHit[].class));
         return toSummaries(hits);
@@ -151,8 +156,9 @@ public class MovieTools {
 
     /**
      * Runs one downstream call and turns its failures into a message the model can act on. A 404
-     * or 400 means the arguments were wrong (an unknown id, or a movie without a plot embedding
-     * yet), so the model is told that; anything else means the service is unavailable.
+     * or 400 means the arguments were wrong (an unknown id or genre, or a movie without a plot
+     * embedding yet), so the model is told that, with the service's own message when it sent one
+     * (it lists the real genres); anything else means the service is unavailable.
      */
     private <T> T call(String what, Supplier<T> request) {
         try {
@@ -162,12 +168,26 @@ public class MovieTools {
             if (ex.getStatusCode().isSameCodeAs(HttpStatus.NOT_FOUND)) {
                 throw new ToolCallException(what + " found no movie with that id", ex);
             }
+            String reason = errorMessage(ex);
             throw new ToolCallException(what + " can't answer this request (" + ex.getStatusCode().value()
-                    + "); try a different tool or different arguments", ex);
+                    + (reason == null ? "" : ": " + reason) + "); try a different tool or different arguments", ex);
         } catch (RestClientException ex) {
             logger.warn("{} call failed: {}", what, ex.getMessage());
             throw new ToolCallException(what + " is unavailable right now", ex);
         }
+    }
+
+    private static String errorMessage(HttpClientErrorException ex) {
+        try {
+            ErrorBody body = ex.getResponseBodyAs(ErrorBody.class);
+            return body == null ? null : body.errorMessage();
+        } catch (RuntimeException unreadable) {
+            return null;
+        }
+    }
+
+    /** The error body search-service sends; other services' bodies just leave it null. */
+    private record ErrorBody(String errorMessage) {
     }
 
     private static void queryParamIfPresent(UriBuilder builder, String name, Object value) {

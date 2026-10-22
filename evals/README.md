@@ -8,8 +8,9 @@ against the model's own account of its answer. ADR-0014 explains the design.
 | Baseline, 2026-10-21 | 31/34 (91.2%) | 98.9% (86/87) | 98.3% | $0.013 |
 | Prompt v2: titles never translated, stricter off-topic rule | 33/34 (97.1%) | 100% (89/89) | 98.3% | $0.015 |
 | Prompt v2, three more runs to set the CI threshold | 33, 33, 32 | 100% | 98.4% | $0.014 |
+| Genre filter on vector search (`d-first-contact` passes) | 33/34 | 100% (89/89) | 100% (62/62) | $0.014 |
 
-Both rows were scored by the current scorers (`--rescore`). The results are in [`results/`](results/).
+The first two rows were rescored by the current scorers (`--rescore`). The results are in [`results/`](results/).
 
 ## Running it
 

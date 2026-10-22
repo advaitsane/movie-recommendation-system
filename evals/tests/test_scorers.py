@@ -37,8 +37,17 @@ class ExtractClaims(unittest.TestCase):
         self.assertEqual(movies.extract_claims(answer),
                          [("V for Vendetta", 2005), ("Sin City", 2005), ("Match Point", 2005)])
 
+    def test_italic_list_items(self):
+        # The f-70s-crime-above-8 answer in the genres-index gate run: two real movies, scored as none.
+        answer = ("- *The Godfather* (1972) — IMDb 9.2; an aging crime boss.\n"
+                  "- *Investigation of a Citizen Above Suspicion* (1970) — IMDb 8.1; a detective.\n"
+                  "1. *Chinatown (1974)* — a private eye.")
+        self.assertEqual(movies.extract_claims(answer), [
+            ("The Godfather", 1972), ("Investigation of a Citizen Above Suspicion", 1970), ("Chinatown", 1974)])
+
     def test_passing_mentions_are_not_claims(self):
         self.assertEqual(movies.extract_claims("Unlike *Arrival*, this one moves fast. It came out in 1996."), [])
+        self.assertEqual(movies.extract_claims("It plays like *Arrival* (2016) at half the length."), [])
         self.assertEqual(movies.extract_claims("I can help with movies, but not write a poem."), [])
 
     def test_duplicates_count_once(self):

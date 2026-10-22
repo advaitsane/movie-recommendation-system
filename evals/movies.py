@@ -8,14 +8,17 @@ import urllib.parse
 import urllib.request
 
 # The system prompt asks for "title, year and one sentence" per movie, and the model writes
-# "**Title (1999)**", "**Title** (1999)" or a plain list item, sometimes with the rating inside
-# the brackets: "(1999, 8.1)". Only those count as claims, so a title mentioned in passing
-# ("unlike Arrival, ...") isn't scored as a recommendation.
+# "**Title (1999)**", "**Title** (1999)" or a list item, plain or in italics, sometimes with the
+# rating inside the brackets: "(1999, 8.1)". Only those count as claims, so a title mentioned in
+# passing ("unlike *Arrival* (2016), ...") isn't scored as a recommendation.
 _YEAR = r"\((\d{4})(?:\s*[,;][^)\n]*)?\)"
+_ITEM = r"^\s*(?:[-*•]|\d+[.)])\s+"
 _CLAIMS = [
     re.compile(r"\*\*([^*\n]+?)\s*" + _YEAR + r"\s*\*\*"),
     re.compile(r"\*\*([^*\n]+?)\*\*\s*" + _YEAR),
-    re.compile(r"^\s*(?:[-*•]|\d+[.)])\s+(?!\*)([^\n(*]+?)\s*" + _YEAR, re.MULTILINE),
+    re.compile(_ITEM + r"(?!\*)([^\n(*]+?)\s*" + _YEAR, re.MULTILINE),
+    re.compile(_ITEM + r"\*([^*\n]+?)\*\s*" + _YEAR, re.MULTILINE),
+    re.compile(_ITEM + r"\*([^*\n]+?)\s*" + _YEAR + r"\s*\*(?!\*)", re.MULTILINE),
 ]
 
 

@@ -1,15 +1,18 @@
 package com.movies.assistant.controller;
 
+import com.movies.assistant.config.AssistantProperties;
 import com.movies.assistant.dto.ChatRequest;
 import com.movies.assistant.dto.StreamError;
 import com.movies.assistant.dto.TokenChunk;
 import com.movies.assistant.exception.GlobalExceptionHandler;
 import com.movies.assistant.memory.ConversationStore;
 import com.movies.assistant.tools.MovieTools;
+import com.movies.assistant.tools.ToolCallLog;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import org.slf4j.Logger;
@@ -28,8 +31,9 @@ import reactor.core.publisher.Flux;
 /**
  * {@code POST /api/assistant/chat}: streams the answer as server-sent events, always in the order
  * {@code conversation}, {@code token}s ({@link TokenChunk}), then {@code done} or {@code error}
- * ({@link StreamError}). Requests rejected before the stream starts get a normal 4xx from
- * {@link GlobalExceptionHandler}.
+ * ({@link StreamError}). With assistant.chat.stream-tool-calls, a {@code tools} event (the
+ * {@link ToolCallLog} entries) comes before {@code done}. Requests rejected before the stream
+ * starts get a normal 4xx from {@link GlobalExceptionHandler}.
  */
 @RestController
 @RequestMapping("/api/assistant")
@@ -43,17 +47,21 @@ public class AssistantController {
 
     private final ChatClient chatClient;
     private final ConversationStore conversationStore;
+    private final boolean streamToolCalls;
 
-    public AssistantController(ChatClient chatClient, ConversationStore conversationStore) {
+    public AssistantController(ChatClient chatClient, ConversationStore conversationStore,
+                               AssistantProperties properties) {
         this.chatClient = chatClient;
         this.conversationStore = conversationStore;
+        this.streamToolCalls = properties.streamToolCalls();
     }
 
     @Operation(
             summary = "Ask the movie assistant",
             description = "Streams the answer as server-sent events: one `conversation` event with the "
                     + "conversation id, `token` events with the answer, then `done`, or `error` if the "
-                    + "model call failed. Send the conversation id back to continue the conversation; "
+                    + "model call failed. A stack run for the evals sends a `tools` event before `done`. "
+                    + "Send the conversation id back to continue the conversation; "
                     + "an id that isn't one of the caller's conversations gets 404. "
                     + "Requires the X-User-Id header that api-gateway sets from the bearer token."
     )
@@ -71,17 +79,27 @@ public class AssistantController {
             conversationStore.requireOwnedBy(conversationId, userId);
         }
 
+        Map<String, Object> toolContext = new HashMap<>(Map.of(MovieTools.USER_ID, userId));
+        ToolCallLog toolCalls = new ToolCallLog();
+        if (streamToolCalls) {
+            toolContext.put(ToolCallLog.KEY, toolCalls);
+        }
         Flux<ServerSentEvent<Object>> answer = chatClient.prompt()
                 .user(request.message())
                 .advisors(advisors -> advisors.param(ChatMemory.CONVERSATION_ID, conversationId.toString()))
-                .toolContext(Map.of(MovieTools.USER_ID, userId))
+                .toolContext(toolContext)
                 .stream()
                 .content()
                 .map(text -> event("token", new TokenChunk(text)));
+        // Deferred: the log is only complete once the answer is.
+        Flux<ServerSentEvent<Object>> tools = streamToolCalls
+                ? Flux.defer(() -> Flux.just(event("tools", toolCalls.entries())))
+                : Flux.empty();
 
         return Flux.concat(
                         Flux.just(event("conversation", Map.of("conversationId", conversationId))),
                         answer,
+                        tools,
                         Flux.just(event("done", Map.of())))
                 // The client went away before the answer finished.
                 .doOnCancel(() -> removeUnansweredMessage(conversationId, request.message()))

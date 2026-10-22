@@ -89,8 +89,16 @@ class Catalog:
         return None, "not_in_catalog"
 
 
+def tool_results(tools: list[dict], name: str) -> list[dict]:
+    """The movies a saved tool call returned to the model, from every successful call to it."""
+    return [_item(m["title"], m.get("year"), m.get("genres"), m.get("imdbRating"), m.get("id"))
+            for call in tools if call["name"] == name and not call["failed"] and isinstance(call["result"], list)
+            for m in call["result"]]
+
+
 def recommendations(recs_url: str, user_id: str, limit: int) -> list[dict]:
-    """What getMyRecommendations returns for this user, to check the answer picked from it."""
+    """What getMyRecommendations returns for this user now. Only for results saved before the
+    tool calls were (the list changes when the service or the ratings do)."""
     url = f"{recs_url.rstrip('/')}/api/recommendations/{urllib.parse.quote(user_id)}?limit={limit}"
     with urllib.request.urlopen(url, timeout=30) as r:
         return [_item(m["title"], m.get("year"), m.get("genres"), None, m.get("movieId")) for m in json.load(r)]

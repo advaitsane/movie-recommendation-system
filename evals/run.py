@@ -67,6 +67,13 @@ def warm_up(args):
     print("  warm-up: vector search is still slow; tool timeouts may fail scenarios", file=sys.stderr)
 
 
+def _json(text):
+    try:
+        return json.loads(text)
+    except (TypeError, json.JSONDecodeError):
+        return text
+
+
 def ask(args, scenario):
     """Sends one scenario to the assistant: the answer, its timing, and its tokens and tool calls."""
     user = scenario.get("user", "eval-anonymous")
@@ -79,6 +86,12 @@ def ask(args, scenario):
         error = stream.first("error")
         result.update(answer=answer, first_token_s=stream.first_token_s, total_s=round(stream.total_s, 2),
                       error=error)
+        # Only with assistant.chat.stream-tool-calls on: what each call sent and got back, so a
+        # rescore checks against what the model saw, not what the services return today.
+        tools = stream.first("tools")
+        if tools is not None:
+            result["tools"] = [{"name": t["name"], "arguments": _json(t["arguments"]),
+                                "result": _json(t["result"]), "failed": t["failed"]} for t in tools]
     except OSError as ex:
         result.update(answer="", first_token_s=None, total_s=None, error={"code": "client", "message": str(ex)})
     # Spring AI records the last model call's usage once the stream completes.
@@ -90,8 +103,12 @@ def ask(args, scenario):
     result["model_calls"] = int(sum(metrics.sum_by(used, "gen_ai_client_operation_seconds_count", "error").values()))
     tool_calls = metrics.sum_by(used, "spring_ai_tool_seconds_count", "spring_ai_tool_definition_name")
     result["tool_calls"] = {k: int(v) for k, v in sorted(tool_calls.items())}
-    result["tool_errors"] = int(sum(v for k, v in metrics.sum_by(
-        used, "spring_ai_tool_seconds_count", "error").items() if k != "none"))
+    # The metric records a tool that returned its error to the model as a success.
+    if "tools" in result:
+        result["tool_errors"] = sum(t["failed"] for t in result["tools"])
+    else:
+        result["tool_errors"] = int(sum(v for k, v in metrics.sum_by(
+            used, "spring_ai_tool_seconds_count", "error").items() if k != "none"))
     return result
 
 
@@ -112,7 +129,10 @@ def score(args, scenario, result, catalog):
         constraint_result = scorers.constraints(items, expect["constraints"], key="title")
         checks.append(constraint_result.check)
     if expect.get("from_recommendations"):
-        reference = movies.recommendations(args.recs, user, limit=8)
+        if "tools" in result:
+            reference = movies.tool_results(result["tools"], "getMyRecommendations")
+        else:
+            reference = movies.recommendations(args.recs, user, limit=8)
         checks.append(scorers.subset(items, reference, key="ref"))
     if expect.get("contains_any") or expect.get("excludes"):
         checks.append(scorers.text(answer, expect.get("contains_any"), expect.get("excludes")))

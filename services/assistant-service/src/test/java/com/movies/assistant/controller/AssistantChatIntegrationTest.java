@@ -85,6 +85,8 @@ class AssistantChatIntegrationTest {
         registry.add("spring.ai.openai.base-url", () -> stub.url() + "/v1");
         registry.add("assistant.downstream.search-service-url", stub::url);
         registry.add("assistant.downstream.recommendation-service-url", stub::url);
+        // As the evals run it; the default (off) is checked in ConfigurationPropertiesValidationTest.
+        registry.add("assistant.chat.stream-tool-calls", () -> "true");
     }
 
     @BeforeEach
@@ -98,7 +100,7 @@ class AssistantChatIntegrationTest {
     }
 
     @Test
-    @DisplayName("streams the answer as conversation, token and done events")
+    @DisplayName("streams the answer as conversation, token, tools and done events")
     void streamsAnswerAsEvents() throws Exception {
         stub.enqueue(COMPLETIONS, OpenAiStream.text("Try ", "Heat (1995)."));
 
@@ -106,8 +108,9 @@ class AssistantChatIntegrationTest {
 
         // OpenAI's first chunk carries only the role and an empty content; it produces no event.
         assertThat(events).extracting(Event::name)
-                .containsExactly("conversation", "token", "token", "done");
+                .containsExactly("conversation", "token", "token", "tools", "done");
         assertThat(answerText(events)).isEqualTo("Try Heat (1995).");
+        assertThat(json.readTree(events.get(3).data()).isEmpty()).isTrue();
         assertThat(json.readTree(events.getFirst().data()).get("conversationId").asText()).isNotBlank();
 
         JsonNode request = completionRequest(0);
@@ -148,6 +151,13 @@ class AssistantChatIntegrationTest {
         assertThat(toolMessage.get("content").asText())
                 .contains("Heat", "573a1398f29313caabcea974", "A group of professional bank robbers")
                 .doesNotContain("Al Pacino", "Long plot");
+
+        // The tools event repeats what the model sent and got, for the evals.
+        JsonNode call = json.readTree(events.get(events.size() - 2).data()).get(0);
+        assertThat(call.get("name").asText()).isEqualTo("searchMovies");
+        assertThat(json.readTree(call.get("arguments").asText()).get("genre").asText()).isEqualTo("Crime");
+        assertThat(call.get("result").asText()).isEqualTo(toolMessage.get("content").asText());
+        assertThat(call.get("failed").asBoolean()).isFalse();
     }
 
     @Test
@@ -178,6 +188,9 @@ class AssistantChatIntegrationTest {
         assertThat(events.getLast().name()).isEqualTo("done");
         assertThat(lastMessage(completionRequest(1), "tool").get("content").asText())
                 .contains("Semantic search is unavailable right now");
+        JsonNode call = json.readTree(events.get(events.size() - 2).data()).get(0);
+        assertThat(call.get("failed").asBoolean()).isTrue();
+        assertThat(call.get("result").asText()).isEqualTo("Semantic search is unavailable right now");
     }
 
     @Test

@@ -37,6 +37,8 @@ class ConfigurationPropertiesValidationTest {
             assertThat(context).hasNotFailed();
             assertThat(context.getBean(AssistantProperties.class).toolResultLimit()).isEqualTo(8);
             assertThat(context.getBean(AssistantProperties.class).retention()).isEqualTo(Duration.ofDays(90));
+            // Tool arguments and results stay out of the stream unless the evals turn them on.
+            assertThat(context.getBean(AssistantProperties.class).streamToolCalls()).isFalse();
             assertThat(context.getBean(DownstreamProperties.class).readTimeoutMs()).isEqualTo(6000);
         });
     }

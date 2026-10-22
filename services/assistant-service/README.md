@@ -59,6 +59,9 @@ data:{}
 - If a **tool** fails (its service is down, times out or rejects the arguments), the model is told
   so as the tool's result and answers with what the other tools returned. The stream still ends
   with `done`.
+- With `ASSISTANT_STREAM_TOOL_CALLS=true` (the evals only), an `event:tools` comes before `done`:
+  each tool call's `name`, `arguments` and `result` as the model sent and got them (JSON strings),
+  and `failed`. Off by default.
 
 Requests rejected before the stream starts get a JSON error: 401 without `X-User-Id`, 400 for a
 blank message, a message over 2,000 characters, or a `conversationId` that isn't a UUID, 404 for
@@ -97,6 +100,7 @@ Limits in `application.yml`:
 | `assistant.chat.memory-max-messages` | 20 | history resent on each turn; all of it is stored |
 | `assistant.chat.retention` / `retention-cron` | 90d / daily 03:30 | conversations idle this long are deleted |
 | `assistant.chat.tool-result-limit` | 8 | movies one tool call returns |
+| `assistant.chat.stream-tool-calls` | `false` | the `tools` event; `ASSISTANT_STREAM_TOOL_CALLS`, on for the evals (ADR-0014 Update 4) |
 | `spring.mvc.async.request-timeout` | 120s | a streamed answer is an async request; Tomcat's default is 30s |
 
 ### Docker / docker-compose

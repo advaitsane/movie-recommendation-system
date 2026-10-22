@@ -1,0 +1,483 @@
+{
+  "summary": {
+    "scenarios": 3,
+    "passed": 3,
+    "pass_rate": 1.0,
+    "grounding_rate": 1.0,
+    "claims": 8,
+    "ungrounded": 0,
+    "constraint_rate": 1.0,
+    "constraint_items": 1,
+    "errors": 0,
+    "models": [
+      "gpt-6-luna"
+    ],
+    "tokens": {
+      "input": 5951,
+      "output": 248
+    },
+    "cost_usd": 0.0007,
+    "cost_is_upper_bound": true,
+    "model_calls": 6,
+    "tool_calls": 3,
+    "tool_errors": 0,
+    "first_token_s": {
+      "p50": 3.7,
+      "p95": 4.31
+    },
+    "total_s": {
+      "p50": 4.25,
+      "p95": 4.91
+    },
+    "aborted": null
+  },
+  "results": [
+    {
+      "id": "d-first-contact",
+      "tags": [
+        "description"
+      ],
+      "message": "Quiet science fiction about first contact with aliens",
+      "answer": "- **The Day the Earth Stood Still (1951)** — A thoughtful, restrained first-contact story in which an alien urges humanity to choose peace.",
+      "first_token_s": 4.313020005996805,
+      "total_s": 4.91,
+      "error": null,
+      "tools": [
+        {
+          "name": "findMoviesByDescription",
+          "arguments": {
+            "description": "Quiet science fiction about first contact with aliens",
+            "genre": "Sci-Fi"
+          },
+          "result": [
+            {
+              "id": "573a1398f29313caabceac9c",
+              "title": "Alien Nation",
+              "year": 1988,
+              "genres": [
+                "Action",
+                "Crime",
+                "Sci-Fi"
+              ],
+              "imdbRating": 6.3,
+              "plot": "A few years from now, Earth will have the first contact with an alien civilization. These aliens, known as Newcomers, slowly begin to be integrated into human society after years of quarantine."
+            },
+            {
+              "id": "573a13bff29313caabd5f0f5",
+              "title": "Alien Trespass",
+              "year": 2009,
+              "genres": [
+                "Comedy",
+                "Horror",
+                "Sci-Fi"
+              ],
+              "imdbRating": 5.7,
+              "plot": "After crash landing near a desert town, an alien enlists the help of a local waitress to re-capture a monster that escaped from the wreckage of his space ship."
+            },
+            {
+              "id": "573a1394f29313caabcdeaa3",
+              "title": "The Day the Earth Stood Still",
+              "year": 1951,
+              "genres": [
+                "Sci-Fi"
+              ],
+              "imdbRating": 7.8,
+              "plot": "An alien lands and tells the people of Earth that they must live peacefully or be destroyed as a danger to other planets."
+            },
+            {
+              "id": "573a1398f29313caabce973a",
+              "title": "Creature",
+              "year": 1985,
+              "genres": [
+                "Horror",
+                "Sci-Fi"
+              ],
+              "imdbRating": 4.2,
+              "plot": "A expedition to Titan uncovers an alien being, that goes on a rampage."
+            },
+            {
+              "id": "573a13c7f29313caabd742df",
+              "title": "Prometheus",
+              "year": 2012,
+              "genres": [
+                "Adventure",
+                "Mystery",
+                "Sci-Fi"
+              ],
+              "imdbRating": 7.0,
+              "plot": "Following clues to the origin of mankind a team journey across the universe and find a structure on a distant planet containing a monolithic statue of a humanoid head and stone cylinders of alien blood but they soon find they are not alone."
+            },
+            {
+              "id": "573a139af29313caabcefbcc",
+              "title": "The Arrival",
+              "year": 1996,
+              "genres": [
+                "Action",
+                "Sci-Fi",
+                "Thriller"
+              ],
+              "imdbRating": 6.3,
+              "plot": "Zane, an astronomer, discovers intelligent alien life. But the aliens are keeping a deadly secret, and will do anything to stop Zane from learning it."
+            },
+            {
+              "id": "573a1394f29313caabcdf43f",
+              "title": "Invaders from Mars",
+              "year": 1953,
+              "genres": [
+                "Horror",
+                "Sci-Fi"
+              ],
+              "imdbRating": 6.5,
+              "plot": "A young boy learns that space aliens are taking over the minds of earthlings."
+            },
+            {
+              "id": "573a1399f29313caabcee32e",
+              "title": "Alien Nation: Dark Horizon",
+              "year": 1994,
+              "genres": [
+                "Sci-Fi",
+                "Drama"
+              ],
+              "imdbRating": 6.6,
+              "plot": "Alien life form comes to Earth to rescue his enslaved race."
+            }
+          ],
+          "failed": false
+        }
+      ],
+      "model": "gpt-6-luna",
+      "tokens": {
+        "input": 2180,
+        "output": 65
+      },
+      "model_calls": 2,
+      "tool_calls": {
+        "findMoviesByDescription": 1
+      },
+      "tool_errors": 0,
+      "claims": [
+        "The Day the Earth Stood Still (1951)"
+      ],
+      "ungrounded": [],
+      "constraint_items": 1,
+      "constraint_satisfied": 1,
+      "checks": [
+        {
+          "name": "answered",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "grounding",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "count",
+          "passed": true,
+          "detail": "1 items, expected [1..]"
+        },
+        {
+          "name": "constraints",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true,
+      "attempt": 1
+    },
+    {
+      "id": "p-scifi-fan",
+      "tags": [
+        "personal"
+      ],
+      "message": "What should I watch tonight?",
+      "answer": "Based on your recommendations, try **The Matrix** (1999) for action-packed sci-fi, or **Blade Runner** (1982) for a more atmospheric sci-fi thriller.",
+      "first_token_s": 3.701779383001849,
+      "total_s": 4.25,
+      "error": null,
+      "tools": [
+        {
+          "name": "getMyRecommendations",
+          "arguments": {},
+          "result": [
+            {
+              "id": "573a139bf29313caabcf3d23",
+              "title": "The Matrix",
+              "year": 1999,
+              "genres": [
+                "Action",
+                "Sci-Fi"
+              ],
+              "source": "BOTH"
+            },
+            {
+              "id": "573a1398f29313caabce948f",
+              "title": "The Terminator",
+              "year": 1984,
+              "genres": [
+                "Action",
+                "Sci-Fi"
+              ],
+              "source": "BOTH"
+            },
+            {
+              "id": "573a1397f29313caabce8347",
+              "title": "Blade Runner",
+              "year": 1982,
+              "genres": [
+                "Sci-Fi",
+                "Thriller"
+              ],
+              "source": "COLLABORATIVE"
+            },
+            {
+              "id": "573a139af29313caabcf045f",
+              "title": "T2 3-D: Battle Across Time",
+              "year": 1996,
+              "genres": [
+                "Action",
+                "Short",
+                "Sci-Fi"
+              ],
+              "source": "CONTENT"
+            },
+            {
+              "id": "573a139ff29313caabcff478",
+              "title": "Terminator 3: Rise of the Machines",
+              "year": 2003,
+              "genres": [
+                "Action",
+                "Sci-Fi"
+              ],
+              "source": "CONTENT"
+            },
+            {
+              "id": "573a13c4f29313caabd6c383",
+              "title": "Terminator Genisys",
+              "year": 2015,
+              "genres": [
+                "Action",
+                "Adventure",
+                "Sci-Fi"
+              ],
+              "source": "CONTENT"
+            },
+            {
+              "id": "573a1398f29313caabceb515",
+              "title": "Batman",
+              "year": 1989,
+              "genres": [
+                "Action",
+                "Adventure"
+              ],
+              "source": "CONTENT"
+            },
+            {
+              "id": "573a13c4f29313caabd6cc80",
+              "title": "The Dark Knight Rises",
+              "year": 2012,
+              "genres": [
+                "Action",
+                "Thriller"
+              ],
+              "source": "CONTENT"
+            }
+          ],
+          "failed": false
+        }
+      ],
+      "model": "gpt-6-luna",
+      "tokens": {
+        "input": 1884,
+        "output": 54
+      },
+      "model_calls": 2,
+      "tool_calls": {
+        "getMyRecommendations": 1
+      },
+      "tool_errors": 0,
+      "claims": [
+        "The Matrix (1999)",
+        "Blade Runner (1982)"
+      ],
+      "ungrounded": [],
+      "constraint_items": 0,
+      "constraint_satisfied": 0,
+      "checks": [
+        {
+          "name": "answered",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "grounding",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "count",
+          "passed": true,
+          "detail": "2 items, expected [1..]"
+        },
+        {
+          "name": "subset",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true,
+      "attempt": 1
+    },
+    {
+      "id": "p-animation-fan",
+      "tags": [
+        "personal"
+      ],
+      "message": "Recommend me something I'd like",
+      "answer": "Based on your recommendations, you might enjoy:\n\n- **Inside Out (2015)** — An imaginative animated adventure with plenty of heart and humor.\n- **Ratatouille (2007)** — A charming comedy about following an unlikely culinary dream.\n- **The Lion King (1994)** — A sweeping animated adventure with drama and memorable characters.\n- **Despicable Me (2010)** — A playful family comedy with a mischievous streak.\n- **Monsters University (2013)** — A funny, energetic animated adventure about friendship and ambition.",
+      "first_token_s": 2.371762814000249,
+      "total_s": 4.2,
+      "error": null,
+      "tools": [
+        {
+          "name": "getMyRecommendations",
+          "arguments": {},
+          "result": [
+            {
+              "id": "573a13d6f29313caabda0bba",
+              "title": "Inside Out",
+              "year": 2015,
+              "genres": [
+                "Animation",
+                "Adventure",
+                "Comedy"
+              ],
+              "source": "COLLABORATIVE"
+            },
+            {
+              "id": "573a1399f29313caabcee7fc",
+              "title": "The Lion King",
+              "year": 1994,
+              "genres": [
+                "Animation",
+                "Adventure",
+                "Drama"
+              ],
+              "source": "COLLABORATIVE"
+            },
+            {
+              "id": "573a13aef29313caabd2e9ae",
+              "title": "Ratatouille",
+              "year": 2007,
+              "genres": [
+                "Animation",
+                "Comedy",
+                "Family"
+              ],
+              "source": "COLLABORATIVE"
+            },
+            {
+              "id": "573a13c3f29313caabd6b143",
+              "title": "Despicable Me",
+              "year": 2010,
+              "genres": [
+                "Animation",
+                "Comedy",
+                "Family"
+              ],
+              "source": "CONTENT"
+            },
+            {
+              "id": "573a13c7f29313caabd74911",
+              "title": "Monsters University",
+              "year": 2013,
+              "genres": [
+                "Animation",
+                "Adventure",
+                "Comedy"
+              ],
+              "source": "CONTENT"
+            },
+            {
+              "id": "573a13ccf29313caabd81adf",
+              "title": "Mr. and Mrs. Incredible",
+              "year": 2011,
+              "genres": [
+                "Comedy"
+              ],
+              "source": "CONTENT"
+            },
+            {
+              "id": "573a1398f29313caabceb839",
+              "title": "Little Monsters",
+              "year": 1989,
+              "genres": [
+                "Comedy",
+                "Adventure",
+                "Family"
+              ],
+              "source": "CONTENT"
+            },
+            {
+              "id": "573a139af29313caabcf05c9",
+              "title": "20,000 Leagues Under the Sea",
+              "year": 1997,
+              "genres": [
+                "Adventure",
+                "Fantasy",
+                "Romance"
+              ],
+              "source": "CONTENT"
+            }
+          ],
+          "failed": false
+        }
+      ],
+      "model": "gpt-6-luna",
+      "tokens": {
+        "input": 1887,
+        "output": 129
+      },
+      "model_calls": 2,
+      "tool_calls": {
+        "getMyRecommendations": 1
+      },
+      "tool_errors": 0,
+      "claims": [
+        "Inside Out (2015)",
+        "Ratatouille (2007)",
+        "The Lion King (1994)",
+        "Despicable Me (2010)",
+        "Monsters University (2013)"
+      ],
+      "ungrounded": [],
+      "constraint_items": 0,
+      "constraint_satisfied": 0,
+      "checks": [
+        {
+          "name": "answered",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "grounding",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "count",
+          "passed": true,
+          "detail": "5 items, expected [1..]"
+        },
+        {
+          "name": "subset",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true,
+      "attempt": 1
+    }
+  ]
+}

@@ -295,6 +295,8 @@ services:
       SEARCH_SERVICE_URL: http://search-service:8082
       RECOMMENDATION_SERVICE_URL: http://recommendation-service:8084
       OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://jaeger:4318/v1/traces
+      # The evals turn it on (docker-compose.eval.yml, the evals workflow); see application.yml.
+      ASSISTANT_STREAM_TOOL_CALLS: ${ASSISTANT_STREAM_TOOL_CALLS:-false}
 
   # ---------- Observability ----------
   jaeger:

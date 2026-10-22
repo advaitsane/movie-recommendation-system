@@ -50,7 +50,7 @@ that, each scenario can expect:
 |---|---|
 | `min_items`, `max_items` | the number of recommended titles is in range; `max_items: 0` for a request to decline |
 | `constraints` | every recommended movie's **catalog record** matches, e.g. `{"field": "year", "op": "between", "value": [1990, 1999]}`; ops: `eq gt gte lt lte between in contains contains_any` |
-| `from_recommendations` | every movie comes from the user's own recommendations (`user` sets the `X-User-Id`) |
+| `from_recommendations` | every movie comes from what `getMyRecommendations` returned in that answer (`user` sets the `X-User-Id`) |
 | `contains_any`, `excludes` | the answer text contains one of these, or none of those (case-insensitive) |
 | `ignore_claims` | these titles may be named without counting as recommendations, e.g. "I couldn't find **Oppenheimer (2023)**" |
 
@@ -73,21 +73,28 @@ Titles are compared after normalizing case, accents, apostrophes and `&`. "The A
   `scripts/seed-demo-data.sh`.
 - `prices.json`: USD per 1M tokens, for the cost of a run.
 - `results/`: one JSON file per run: a summary, then every answer with its checks, tokens, tool
-  calls and timings.
+  calls and timings. `tools` holds each call's arguments and result, so `--rescore` needs no
+  services but search-service. Files from before 2026-10-22 don't have it; their
+  `from_recommendations` check asks recommendation-service again, which may have changed.
 
 ## How tokens, cost and tool calls are measured
 
 The harness reads assistant-service's `/actuator/prometheus` before and after each scenario. Spring
 AI's `gen_ai_client_token_usage_total` and `spring_ai_tool_seconds_count` give that scenario's
-tokens and tool calls, so the service needs no eval-only code. This only works because scenarios
-run one at a time on a stack nothing else is using.
+tokens and tool calls. This only works because scenarios run one at a time on a stack nothing
+else is using.
+
+The tool calls' arguments and results come from the stream itself: with
+`assistant.chat.stream-tool-calls` on (`docker-compose.eval.yml` and the evals workflow set
+`ASSISTANT_STREAM_TOOL_CALLS`), each answer ends with a `tools` event. ADR-0014 Update 4.
 
 ## Limits
 
 - **Cost is an upper bound.** The token metric doesn't separate cached input, which is billed at a
   tenth of the price.
-- **`tool_errors` is always 0.** A tool that fails returns its error to the model as the tool
-  result, and Spring AI's metric still records the call as `error="none"`.
+- **`tool_errors` comes from the `tools` event.** A tool that fails returns its error to the
+  model as the tool result, and Spring AI's metric still records the call as `error="none"`, so
+  a stack without the event always reports 0.
 - **A cold stack scores the infrastructure.** After a restart, the first vector searches can take
   over the tools' 6s timeout. The warm-up varies its queries until vector search is under 2s, and
   warns if it never gets there.

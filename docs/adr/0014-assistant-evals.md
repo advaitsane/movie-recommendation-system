@@ -215,3 +215,32 @@ description says to set it when the user names a genre; the prompt is unchanged.
 - This is the evidence step 3 asked for. With the filter in, `MovieQuery` has one reason left,
   year ranges ("90s"), and those scenarios pass today.
 
+
+## Update 3 (2026-10-22): `p-scifi-fan` was a timeout budget, now fixed
+
+`p-scifi-fan` failed in 2 of 6 runs, with `getMyRecommendations` cancelled at the assistant's 6s
+tool timeout. recommendation-service looked up its three seed movies in search-service one after
+another, each with a 3s read timeout: up to 9s. It now looks them up in parallel under one 3s
+deadline (ADR-0010 Update 11, with the latency measurements).
+
+| Run (gpt-6-luna) | Passed | Constraints | Cost | p50 / p95 |
+|---|---|---|---|---|
+| `p-scifi-fan` alone, search-service delayed 1s, cold cache | 3/3 | — | — | — |
+| Gate, local | 33/34 | 98.3% | $0.0142 | 4.5s / 9.2s |
+| Gate, CI | 34/34 | 100% | $0.0140 | — |
+
+- `p-scifi-fan` passed in all five. Before, a 1s delay meant a 9.1s answer from
+  recommendation-service, past the tool timeout.
+- An earlier local gate run on this change scored 25/34, at p95 23s. That was the host, not the
+  change: Mongo stalled for minutes at a time, out of memory, and scenarios that never call
+  recommendation-service failed too. Part of the load was the unindexed `distinct('genres')`
+  that ADR-0002's genre-filter update now fixes. A rerun on a freshly started stack is the one
+  above.
+- `d-first-contact` failed in both gate runs with the genres index (local and CI, on #38),
+  because the model left out the genre and got *The Visit* back. Update 2's 4 of 4 was a small
+  sample: the filter works when it's used, but the model doesn't always use it. The CI gate on
+  this change passed it without the filter at all. Telling these apart needs the tool calls
+  across repeats, not the pass count.
+- One more failure in the local run with the genres index was the scorer:
+  `f-70s-crime-above-8` answered with two valid movies, written `- *Title* (1972)`, and the
+  extractor doesn't read single italics.

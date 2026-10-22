@@ -2,9 +2,11 @@ package com.movies.assistant.config;
 
 import com.movies.assistant.memory.PostgresChatMemory;
 import com.movies.assistant.tools.MovieTools;
+import com.movies.assistant.tools.ToolCallLog;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
+import org.springframework.ai.support.ToolCallbacks;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -32,7 +34,7 @@ public class ChatClientConfig {
                                  @Value("classpath:prompts/system.st") Resource systemPrompt) {
         return builder
                 .defaultSystem(systemPrompt)
-                .defaultTools(movieTools)
+                .defaultToolCallbacks(ToolCallLog.recording(ToolCallbacks.from(movieTools)))
                 .defaultAdvisors(MessageChatMemoryAdvisor.builder(chatMemory).build())
                 .build();
     }

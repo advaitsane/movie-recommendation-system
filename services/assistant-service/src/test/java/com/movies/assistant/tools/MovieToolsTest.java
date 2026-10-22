@@ -29,7 +29,7 @@ class MovieToolsTest {
     void setUp() throws Exception {
         stub = new StubHttpServer();
         RestClient client = RestClient.builder().baseUrl(stub.url()).build();
-        tools = new MovieTools(client, client, new AssistantProperties(20, 5, Duration.ofDays(90)));
+        tools = new MovieTools(client, client, new AssistantProperties(20, 5, Duration.ofDays(90), false));
     }
 
     @AfterEach
@@ -137,7 +137,7 @@ class MovieToolsTest {
     @DisplayName("an unreachable service is reported as unavailable, without the underlying error")
     void unreachableServiceIsUnavailable() {
         RestClient unreachable = RestClient.builder().baseUrl("http://localhost:1").build();
-        MovieTools offline = new MovieTools(unreachable, unreachable, new AssistantProperties(20, 5, Duration.ofDays(90)));
+        MovieTools offline = new MovieTools(unreachable, unreachable, new AssistantProperties(20, 5, Duration.ofDays(90), false));
 
         assertThatThrownBy(() -> offline.findMoviesByDescription("heist", null))
                 .isInstanceOf(ToolCallException.class)

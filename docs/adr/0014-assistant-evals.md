@@ -244,3 +244,35 @@ deadline (ADR-0010 Update 11, with the latency measurements).
 - One more failure in the local run with the genres index was the scorer:
   `f-70s-crime-above-8` answered with two valid movies, written `- *Title* (1972)`, and the
   extractor doesn't read single italics.
+
+## Update 4 (2026-10-22): results keep each tool call's arguments and result
+
+Two questions the results files couldn't answer. Update 3 needed to know whether the model sent
+the genre in `d-first-contact`, and only the tool call counts were saved; the arguments had to be
+read from Jaeger spans. And `--rescore` couldn't replay `from_recommendations`: the check asked
+recommendation-service for the user's list again, so on a rebuilt stack `p-animation-fan` failed a
+rescore of an answer that had passed (*Despicable Me* and *Monsters University* had left the
+list).
+
+assistant-service now wraps each tool so that a call's arguments, result and failure go into a
+per-answer log in the `ToolContext`. With `assistant.chat.stream-tool-calls` on, the stream ends
+with a `tools` event holding that log, and the harness saves it as `tools` in each result.
+`from_recommendations` now checks against what `getMyRecommendations` returned in that answer,
+which is also what the model saw, rather than a second call made afterwards. `tool_errors` is
+counted from the log, since Spring AI's metric records a tool that returned its error as a success.
+
+- **Off by default.** Only `docker-compose.eval.yml` and the evals workflow turn it on. Tool
+  results are what the model sees, not the user, and they are larger than the answer.
+- **Not read from traces.** Jaeger spans have the downstream URL, so the arguments, but not the
+  trimmed result the model got, and a trace store isn't something a CI run's artifact keeps.
+- **Not a request flag.** Any client could set it; a server setting keeps the decision with
+  whoever runs the stack.
+- **Stricter.** An answer that didn't call `getMyRecommendations` has an empty reference, so any
+  movie in it fails `subset`. Before, it passed when its picks happened to be on today's list.
+- **Older files** have no `tools`, so their `from_recommendations` check still makes the live call.
+
+Evidence: `p-animation-fan`, `p-scifi-fan` and `d-first-contact` run with the event on, then
+rescored with `--recs` pointing at a closed port: the same three passes, with no recommendation-service.
+`d-first-contact` sent `genre: Sci-Fi`, in this run and in all three runs of `--repeat 3` before
+the change (read from Jaeger then), so its failures in Update 3 look like the model sometimes
+leaving the genre out, not something it never does.

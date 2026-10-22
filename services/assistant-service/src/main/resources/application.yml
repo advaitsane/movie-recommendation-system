@@ -114,6 +114,9 @@ assistant:
     retention-cron: "0 30 3 * * *"
     # Movies one tool call returns to the model.
     tool-result-limit: 8
+    # On for the evals only (docker-compose.eval.yml, the evals workflow): ends each stream with a
+    # `tools` event, the arguments and results the model's tool calls got. See ADR-0014 Update 4.
+    stream-tool-calls: ${ASSISTANT_STREAM_TOOL_CALLS:false}
 
 # Logging Configuration
 logging:

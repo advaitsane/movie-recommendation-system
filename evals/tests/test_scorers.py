@@ -60,6 +60,16 @@ class ExtractClaims(unittest.TestCase):
         self.assertEqual(movies.normalize("Herod\u2019s Law"), movies.normalize("Herod's Law"))
         self.assertNotEqual(movies.normalize("The Arrival"), movies.normalize("Arrival"))
 
+    def test_tool_results(self):
+        tools = [{"name": "getMyRecommendations", "arguments": {}, "failed": False,
+                  "result": [{"id": "m1", "title": "Inside Out", "year": 2015, "genres": ["Animation"]}]},
+                 {"name": "getMyRecommendations", "arguments": {}, "failed": True,
+                  "result": "The recommendation service is unavailable right now"},
+                 {"name": "searchMovies", "arguments": {"query": "up"}, "failed": False,
+                  "result": [{"id": "m2", "title": "Up", "year": 2009}]}]
+        self.assertEqual([m["ref"] for m in movies.tool_results(tools, "getMyRecommendations")],
+                         ["inside out|2015"])
+
 
 class Scorers(unittest.TestCase):
 

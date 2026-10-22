@@ -12,3 +12,7 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: localhost:9092
       # catalog-service isn't started; movie_metadata is already in the volume from `make up`.
       CATALOG_BACKFILL_ENABLED: "false"
+  assistant-service:
+    environment:
+      # Each answer ends with its tool calls, which the evals save and score against.
+      ASSISTANT_STREAM_TOOL_CALLS: "true"

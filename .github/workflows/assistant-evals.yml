@@ -44,6 +44,8 @@ jobs:
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       COMPOSE_PROFILES: assistant
+      # The whole stack runs from docker-compose.yml here, so the eval override's setting is repeated.
+      ASSISTANT_STREAM_TOOL_CALLS: "true"
     steps:
       - uses: actions/checkout@v7
       - name: Check for the OpenAI key

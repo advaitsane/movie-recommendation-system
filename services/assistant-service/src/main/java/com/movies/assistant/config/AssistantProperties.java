@@ -15,12 +15,15 @@ import org.springframework.validation.annotation.Validated;
  * @param memoryMaxMessages how many past messages of one conversation are resent to the model
  * @param toolResultLimit   how many movies a single tool call returns to the model
  * @param retention         how long a conversation is kept after its last message
+ * @param streamToolCalls   whether a {@code tools} event with each tool call's arguments and result
+ *                          ends the stream, for the evals; off outside them
  */
 @Validated
 @ConfigurationProperties(prefix = "assistant.chat")
 public record AssistantProperties(
         @Min(2) @Max(100) int memoryMaxMessages,
         @Positive @Max(50) int toolResultLimit,
-        @NotNull Duration retention
+        @NotNull Duration retention,
+        boolean streamToolCalls
 ) {
 }

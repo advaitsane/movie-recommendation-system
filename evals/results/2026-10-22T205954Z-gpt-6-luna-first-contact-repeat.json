@@ -1,0 +1,191 @@
+{
+  "summary": {
+    "scenarios": 3,
+    "passed": 3,
+    "pass_rate": 1.0,
+    "grounding_rate": 1.0,
+    "claims": 5,
+    "ungrounded": 0,
+    "constraint_rate": 1.0,
+    "constraint_items": 5,
+    "errors": 0,
+    "models": [
+      "gpt-6-luna"
+    ],
+    "tokens": {
+      "input": 6540,
+      "output": 292
+    },
+    "cost_usd": 0.0008,
+    "cost_is_upper_bound": true,
+    "model_calls": 6,
+    "tool_calls": 3,
+    "tool_errors": 0,
+    "first_token_s": {
+      "p50": 2.68,
+      "p95": 8.17
+    },
+    "total_s": {
+      "p50": 3.95,
+      "p95": 8.91
+    },
+    "aborted": null
+  },
+  "results": [
+    {
+      "id": "d-first-contact",
+      "tags": [
+        "description"
+      ],
+      "message": "Quiet science fiction about first contact with aliens",
+      "answer": "I didn’t find a strong match for “quiet” first-contact sci-fi in the results. **The Day the Earth Stood Still** (1951) is the closest: an alien arrives on Earth with a message urging humanity to live peacefully.",
+      "first_token_s": 8.17168137599947,
+      "total_s": 8.91,
+      "error": null,
+      "model": "gpt-6-luna",
+      "tokens": {
+        "input": 2180,
+        "output": 84
+      },
+      "model_calls": 2,
+      "tool_calls": {
+        "findMoviesByDescription": 1
+      },
+      "tool_errors": 0,
+      "claims": [
+        "The Day the Earth Stood Still (1951)"
+      ],
+      "ungrounded": [],
+      "constraint_items": 1,
+      "constraint_satisfied": 1,
+      "checks": [
+        {
+          "name": "answered",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "grounding",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "count",
+          "passed": true,
+          "detail": "1 items, expected [1..]"
+        },
+        {
+          "name": "constraints",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true,
+      "attempt": 1
+    },
+    {
+      "id": "d-first-contact",
+      "tags": [
+        "description"
+      ],
+      "message": "Quiet science fiction about first contact with aliens",
+      "answer": "These are the closest matches I found:\n\n- **The Day the Earth Stood Still (1951)** — A quietly paced science-fiction classic about an alien visitor urging humanity to live peacefully.\n- **Alien Nation (1988)** — Explores first contact through the gradual integration of aliens into human society.",
+      "first_token_s": 2.2538581669941777,
+      "total_s": 3.17,
+      "error": null,
+      "model": "gpt-6-luna",
+      "tokens": {
+        "input": 2180,
+        "output": 95
+      },
+      "model_calls": 2,
+      "tool_calls": {
+        "findMoviesByDescription": 1
+      },
+      "tool_errors": 0,
+      "claims": [
+        "The Day the Earth Stood Still (1951)",
+        "Alien Nation (1988)"
+      ],
+      "ungrounded": [],
+      "constraint_items": 2,
+      "constraint_satisfied": 2,
+      "checks": [
+        {
+          "name": "answered",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "grounding",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "count",
+          "passed": true,
+          "detail": "2 items, expected [1..]"
+        },
+        {
+          "name": "constraints",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true,
+      "attempt": 2
+    },
+    {
+      "id": "d-first-contact",
+      "tags": [
+        "description"
+      ],
+      "message": "Quiet science fiction about first contact with aliens",
+      "answer": "The results don’t include a clear match for *quiet* first contact, but these are the closest:\n\n- **The Day the Earth Stood Still (1951)** — A visitor from another planet arrives with a warning urging humanity to live peacefully.\n- **Alien Nation (1988)** — Aliens settle into human society after first contact, though it leans more toward action and crime.",
+      "first_token_s": 2.6833251749994815,
+      "total_s": 3.95,
+      "error": null,
+      "model": "gpt-6-luna",
+      "tokens": {
+        "input": 2180,
+        "output": 113
+      },
+      "model_calls": 2,
+      "tool_calls": {
+        "findMoviesByDescription": 1
+      },
+      "tool_errors": 0,
+      "claims": [
+        "The Day the Earth Stood Still (1951)",
+        "Alien Nation (1988)"
+      ],
+      "ungrounded": [],
+      "constraint_items": 2,
+      "constraint_satisfied": 2,
+      "checks": [
+        {
+          "name": "answered",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "grounding",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "count",
+          "passed": true,
+          "detail": "2 items, expected [1..]"
+        },
+        {
+          "name": "constraints",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true,
+      "attempt": 3
+    }
+  ]
+}

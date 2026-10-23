@@ -7,7 +7,7 @@ VUS ?=
 # Chaos experiment to run: a script in chaos/ and its arguments.
 CHAOS ?= 02_service_kill.sh search-service 30
 
-.PHONY: help up up-all assistant eval-up wait down clean ps logs warmup demo smoke load chaos eval eval-test
+.PHONY: help up up-all assistant eval-up eval-metrics wait down clean ps logs warmup demo smoke load chaos eval eval-test
 
 help: ## List the targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-9s %s\n", $$1, $$2}'
@@ -40,6 +40,9 @@ eval-up: ## Start only what the assistant evals need (after one `make up` has lo
 	$(EVAL_COMPOSE) build $(EVAL_APPS)
 	$(EVAL_COMPOSE) up -d --no-deps $(EVAL_SERVICES)
 	@WAIT_SERVICES="search-service:8082 recommendation-service:8084 assistant-service:8086" scripts/wait-healthy.sh
+
+eval-metrics: ## Add Prometheus and Grafana (:3001) to the eval stack, for the assistant dashboard
+	$(EVAL_COMPOSE) up -d --no-deps prometheus grafana
 
 wait: ## Wait until every service is UP
 	@scripts/wait-healthy.sh

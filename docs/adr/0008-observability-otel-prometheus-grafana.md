@@ -283,3 +283,55 @@ happened:
 
 The 16.7% failed requests in k6's summary are those rejected search calls. Peaks: `mflix-mongo`
 732 MiB of 1,280, search-service 284 of 448, api-gateway 255 of 384, Kafka 223 of 512.
+
+## Update 3 (2026-10-23): an assistant dashboard, with tokens, cost and time to first token
+
+A fourth dashboard, **Assistant (LLM)** (`movies-assistant.json`), covers what Update 2 left for
+roadmap Phase 2 step 8. Its panels are answers by outcome, time to first token, tokens per minute
+and per answer, model calls per answer, model call p95, cost in the time range and per hour, and
+tool calls by tool and outcome, with tool latency.
+
+**What Spring AI already exported:** `gen_ai_client_token_usage_total` (by model and token type),
+`gen_ai_client_operation_seconds` (one model call) and `spring_ai_tool_seconds` (one tool call).
+Four gaps:
+
+1. **Failed tool calls were counted as successes.** A tool that throws has its message sent to the
+   model as the result (ADR-0013), so Spring AI's tool observation never sees an error and tags
+   every call `error="none"` (todo 21). New counter `assistant.tool.calls{tool, outcome}`, counted
+   in the `ToolCallLog` wrapper, which already sees the exception. A call refused by the tool-call
+   limit isn't counted, because the tool never runs; an integration test checks both.
+2. **No time to first token.** New timer `assistant.chat.first.token`, from the request to the
+   first streamed token. Tool calls and the model calls around them come first, so it is most of
+   what the user waits for. The evals measure the same thing from the client side.
+3. **No answer outcome.** New counter `assistant.chat.answers{outcome}`: done, error or
+   cancelled (the client stopped reading).
+4. **No latency buckets on model or tool calls.** SLO buckets, as in Update 2: 250ms to 32s for
+   `gen_ai.client.operation`, 500ms to 32s for the first token and 50ms to 8s for tools. The
+   meter name has an underscore, so its config key needs brackets (`"[gen_ai.client.operation]"`);
+   without them the setting matched nothing and the p95 panel stayed empty.
+
+**Cost is computed in Prometheus, not in the service.** `infra/prometheus-rules.yml` holds one
+constant series per model and token type, `gen_ai_price_usd_per_million_tokens`, and the panels
+multiply the token counter by it with a join on `gen_ai_request_model` and `gen_ai_token_type`.
+The service keeps exporting tokens, the raw fact; a price change is a config change in one place;
+and the same rule serves any model. The prices are the ones in `evals/prices.json`, and a test in
+`evals/tests/test_prices.py` fails if the two differ. Like the evals, cost is an upper bound:
+cached input is cheaper, and the token metric doesn't separate it.
+
+**Not covered.** Spring AI creates its token counter and tool timers on first use, so `rate()`
+misses a series' first observation after a restart. The new meters are registered at startup and
+start at 0. The model's own reasoning time isn't separate from the model call.
+
+**Evidence.** On the eval stack plus Prometheus and Grafana (`make eval-up eval-metrics`): 11
+answers from the eval scenarios, one of them with recommendation-service stopped.
+- Every panel query returned data. Answers 11 done, 0 error; model calls 13, matching the harness
+  for the first 5 answers; cost $0.0024 against the harness's $0.0022, the gap being how
+  `increase()` extrapolates to the edges of the range.
+- With recommendation-service stopped, `assistant_tool_calls_total{outcome="failure",
+  tool="getMyRecommendations"}` went to 1, while `spring_ai_tool_seconds_count` for the same call
+  still said `error="none"`.
+- About 3,400 input and 105 output tokens per answer, 2.4 model calls per answer. Input is 97% of
+  the tokens: every model call resends the system prompt, the history and the tool results.
+- Prometheus and Grafana add about 140 MiB to the eval stack.
+
+![Assistant dashboard](../images/grafana-assistant.png)

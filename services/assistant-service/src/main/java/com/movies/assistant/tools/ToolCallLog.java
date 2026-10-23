@@ -1,5 +1,7 @@
 package com.movies.assistant.tools;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -11,7 +13,9 @@ import org.springframework.ai.tool.metadata.ToolMetadata;
 /**
  * The tool calls of one answer: the arguments the model sent and the result it got back, which the
  * evals score against (assistant.chat.stream-tool-calls). The controller puts one in the
- * {@link ToolContext} under {@link #KEY}; {@link #recording} wraps the tools to fill it.
+ * {@link ToolContext} under {@link #KEY}; {@link #recording} wraps the tools to fill it, and counts
+ * every call in {@code assistant.tool.calls} by tool and outcome. Spring AI's own tool metric tags a
+ * failed call {@code error="none"}, because the failure is caught and turned into the result.
  */
 public class ToolCallLog {
 
@@ -32,15 +36,24 @@ public class ToolCallLog {
         return List.copyOf(entries);
     }
 
-    public static ToolCallback[] recording(ToolCallback[] tools) {
+    public static ToolCallback[] recording(ToolCallback[] tools, MeterRegistry registry) {
         ToolCallback[] wrapped = new ToolCallback[tools.length];
         for (int i = 0; i < tools.length; i++) {
-            wrapped[i] = new Recording(tools[i]);
+            String name = tools[i].getToolDefinition().name();
+            wrapped[i] = new Recording(tools[i], counter(registry, name, "success"), counter(registry, name, "failure"));
         }
         return wrapped;
     }
 
-    private record Recording(ToolCallback delegate) implements ToolCallback {
+    private static Counter counter(MeterRegistry registry, String tool, String outcome) {
+        return Counter.builder("assistant.tool.calls")
+                .description("Tool calls the model made, by outcome; a failure's message went to the model")
+                .tag("tool", tool)
+                .tag("outcome", outcome)
+                .register(registry);
+    }
+
+    private record Recording(ToolCallback delegate, Counter successes, Counter failures) implements ToolCallback {
 
         @Override
         public ToolDefinition getToolDefinition() {
@@ -63,12 +76,14 @@ public class ToolCallLog {
             String name = delegate.getToolDefinition().name();
             try {
                 String result = delegate.call(arguments, toolContext);
+                successes.increment();
                 if (log != null) {
                     log.entries.add(new Entry(name, arguments, result, false));
                 }
                 return result;
             } catch (RuntimeException ex) {
                 // Spring AI sends this message to the model as the result (see ToolCallException).
+                failures.increment();
                 if (log != null) {
                     log.entries.add(new Entry(name, arguments, ex.getMessage(), true));
                 }

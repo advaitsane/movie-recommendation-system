@@ -3,6 +3,7 @@ package com.movies.assistant.config;
 import com.movies.assistant.memory.PostgresChatMemory;
 import com.movies.assistant.tools.MovieTools;
 import com.movies.assistant.tools.ToolCallLog;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
@@ -31,10 +32,11 @@ public class ChatClientConfig {
 
     @Bean
     public ChatClient chatClient(ChatClient.Builder builder, ChatMemory chatMemory, MovieTools movieTools,
+                                 MeterRegistry meterRegistry,
                                  @Value("classpath:prompts/system.st") Resource systemPrompt) {
         return builder
                 .defaultSystem(systemPrompt)
-                .defaultToolCallbacks(ToolCallLog.recording(ToolCallbacks.from(movieTools)))
+                .defaultToolCallbacks(ToolCallLog.recording(ToolCallbacks.from(movieTools), meterRegistry))
                 .defaultAdvisors(MessageChatMemoryAdvisor.builder(chatMemory).build())
                 .build();
     }

@@ -1,0 +1,26 @@
+# Recording rules loaded by the prometheus container (../docker-compose.yml). The model prices are
+# constant series, so a Grafana panel can turn gen_ai_client_token_usage_total into dollars with a
+# join on model and token type. USD per 1M tokens, the same numbers as evals/prices.json: change
+# both together. Cached input isn't priced: the token metric doesn't separate it, so costs are an
+# upper bound. See docs/adr/0008 Update 3.
+groups:
+  - name: gen-ai-prices
+    rules:
+      - record: gen_ai_price_usd_per_million_tokens
+        expr: vector(0.10)
+        labels: {gen_ai_request_model: gpt-6-luna, gen_ai_token_type: input}
+      - record: gen_ai_price_usd_per_million_tokens
+        expr: vector(0.50)
+        labels: {gen_ai_request_model: gpt-6-luna, gen_ai_token_type: output}
+      - record: gen_ai_price_usd_per_million_tokens
+        expr: vector(2.00)
+        labels: {gen_ai_request_model: gpt-6.1-sol, gen_ai_token_type: input}
+      - record: gen_ai_price_usd_per_million_tokens
+        expr: vector(10.00)
+        labels: {gen_ai_request_model: gpt-6.1-sol, gen_ai_token_type: output}
+      - record: gen_ai_price_usd_per_million_tokens
+        expr: vector(10.00)
+        labels: {gen_ai_request_model: gpt-6-astra, gen_ai_token_type: input}
+      - record: gen_ai_price_usd_per_million_tokens
+        expr: vector(50.00)
+        labels: {gen_ai_request_model: gpt-6-astra, gen_ai_token_type: output}

@@ -1,5 +1,5 @@
-# Loads the dashboards in json/ on Grafana start: Service overview (RED), Resilience, and Events
-# and JVM. Edit the JSON, not the UI: a UI change is lost when the container is recreated. See
+# Loads the dashboards in json/ on Grafana start: Service overview (RED), Resilience, Events and
+# JVM, and Assistant (LLM). Edit the JSON, not the UI: a UI change is lost when the container is recreated. See
 # docs/adr/0008.
 apiVersion: 1
 

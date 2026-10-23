@@ -8,6 +8,9 @@ import com.movies.assistant.exception.GlobalExceptionHandler;
 import com.movies.assistant.memory.ConversationStore;
 import com.movies.assistant.tools.MovieTools;
 import com.movies.assistant.tools.ToolCallLog;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -15,6 +18,8 @@ import jakarta.validation.Valid;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
@@ -33,7 +38,9 @@ import reactor.core.publisher.Flux;
  * {@code conversation}, {@code token}s ({@link TokenChunk}), then {@code done} or {@code error}
  * ({@link StreamError}). With assistant.chat.stream-tool-calls, a {@code tools} event (the
  * {@link ToolCallLog} entries) comes before {@code done}. Requests rejected before the stream
- * starts get a normal 4xx from {@link GlobalExceptionHandler}.
+ * starts get a normal 4xx from {@link GlobalExceptionHandler}. Two metrics cover what the user
+ * sees: {@code assistant.chat.first.token}, from the request to the first token (tool calls happen
+ * before it), and {@code assistant.chat.answers} by how the stream ended: done, error or cancelled.
  */
 @RestController
 @RequestMapping("/api/assistant")
@@ -48,12 +55,29 @@ public class AssistantController {
     private final ChatClient chatClient;
     private final ConversationStore conversationStore;
     private final boolean streamToolCalls;
+    private final Timer firstToken;
+    private final Counter done;
+    private final Counter failed;
+    private final Counter cancelled;
 
     public AssistantController(ChatClient chatClient, ConversationStore conversationStore,
-                               AssistantProperties properties) {
+                               AssistantProperties properties, MeterRegistry meterRegistry) {
         this.chatClient = chatClient;
         this.conversationStore = conversationStore;
         this.streamToolCalls = properties.streamToolCalls();
+        this.firstToken = Timer.builder("assistant.chat.first.token")
+                .description("Time from the chat request to the answer's first token, tool calls included")
+                .register(meterRegistry);
+        this.done = answers(meterRegistry, "done");
+        this.failed = answers(meterRegistry, "error");
+        this.cancelled = answers(meterRegistry, "cancelled");
+    }
+
+    private static Counter answers(MeterRegistry registry, String outcome) {
+        return Counter.builder("assistant.chat.answers")
+                .description("Streamed answers, by how the stream ended")
+                .tag("outcome", outcome)
+                .register(registry);
     }
 
     @Operation(
@@ -70,6 +94,7 @@ public class AssistantController {
     public Flux<ServerSentEvent<Object>> chat(
             @Parameter(hidden = true) @RequestHeader(USER_ID_HEADER) String userId,
             @Valid @RequestBody ChatRequest request) {
+        long start = System.nanoTime();
         // Before the stream starts, so a foreign or unknown id gets a plain 404.
         UUID conversationId;
         if (request.conversationId() == null) {
@@ -79,6 +104,7 @@ public class AssistantController {
             conversationStore.requireOwnedBy(conversationId, userId);
         }
 
+        AtomicBoolean firstTokenSeen = new AtomicBoolean();
         Map<String, Object> toolContext = new HashMap<>(Map.of(MovieTools.USER_ID, userId));
         ToolCallLog toolCalls = new ToolCallLog();
         if (streamToolCalls) {
@@ -90,6 +116,11 @@ public class AssistantController {
                 .toolContext(toolContext)
                 .stream()
                 .content()
+                .doOnNext(text -> {
+                    if (firstTokenSeen.compareAndSet(false, true)) {
+                        firstToken.record(System.nanoTime() - start, TimeUnit.NANOSECONDS);
+                    }
+                })
                 .map(text -> event("token", new TokenChunk(text)));
         // Deferred: the log is only complete once the answer is.
         Flux<ServerSentEvent<Object>> tools = streamToolCalls
@@ -100,10 +131,17 @@ public class AssistantController {
                         Flux.just(event("conversation", Map.of("conversationId", conversationId))),
                         answer,
                         tools,
-                        Flux.just(event("done", Map.of())))
+                        Flux.defer(() -> {
+                            done.increment();
+                            return Flux.just(event("done", Map.of()));
+                        }))
                 // The client went away before the answer finished.
-                .doOnCancel(() -> removeUnansweredMessage(conversationId, request.message()))
+                .doOnCancel(() -> {
+                    cancelled.increment();
+                    removeUnansweredMessage(conversationId, request.message());
+                })
                 .onErrorResume(ex -> {
+                    failed.increment();
                     // The full error stays in the log: a provider error can carry request details
                     // that shouldn't reach the client.
                     logger.error("Assistant stream failed for conversation {}", conversationId, ex);

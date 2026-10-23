@@ -1,7 +1,7 @@
 # Demo
 
-A walk through the system in four acts: a new user's happy path, the system under load, a
-dependency failing, and the AI assistant. It's also the script for the demo video. Every command
+A walk through the system in five acts: a new user's happy path, the system under load, a
+dependency failing, the AI assistant, and how the assistant is measured. It's also the script for the demo video. Every command
 runs from the repo root on a laptop; [running locally](running-locally.md) covers setup.
 
 On an 8 GB laptop with a 4 GB Docker VM, start from fresh data and restart once, so the first
@@ -117,6 +117,63 @@ A failing tool doesn't fail the answer: Spring AI sends the tool's error ("searc
 right now") back to the model as its result, and the model picks another way (ADR-0013). One slow
 dependency costs a step, not the whole answer.
 
-This is v1. Its answers are now measured: 34 eval scenarios check every recommended title against
-the catalog, and 33 pass ([`evals/`](../evals/), [ADR-0014](adr/0014-assistant-evals.md)). A
-grounding check inside the service comes next.
+A demo shows one answer. Act 5 shows how all of them are measured.
+
+## Act 5: measuring the assistant
+
+The assistant's tests run against a stub of the OpenAI API, so they can't say whether an answer is
+any good. The evals send 34 real requests to the real model and check each recommended movie
+against the catalog: that it exists, and that it matches the request's year, genre and rating
+([`evals/`](../evals/), [ADR-0014](adr/0014-assistant-evals.md)).
+
+```bash
+make eval-up        # only what the assistant's tools reach, about 2.2 GB (after one `make up`)
+make eval-metrics   # adds Prometheus and Grafana for the dashboard below
+make eval           # 34 scenarios, about 3 minutes and $0.015 on gpt-6-luna
+```
+
+Each scenario prints its verdict and, when it fails, the check that failed. From the CI run on
+[#42](https://github.com/advaitsane/movie-recommendation-system/pull/42), trimmed:
+
+```text
+PASS  f-90s-comedies-7               10.3s  tools=3
+FAIL  f-romcom-2000-2004              5.5s  tools=3  count: 0 items, expected [1..]
+FAIL  d-first-contact                 4.8s  tools=1  constraints: The Visit: genres=['Documentary'] not contains 'Sci-Fi'
+PASS  s-like-inception                9.8s  tools=3
+PASS  p-scifi-fan                     3.9s  tools=1
+PASS  x-code                          1.1s  tools=0
+  "passed": 32,
+  "pass_rate": 0.941,
+  "grounding_rate": 1.0,
+  "constraint_rate": 0.983,
+  "cost_usd": 0.0146,
+```
+
+- **Grounding 100%:** every movie the model recommended exists in the catalog.
+- **`d-first-contact`** is a real, open failure. Vector search returns a documentary among the
+  sci-fi when the model leaves out the genre filter it has
+  ([ADR-0014 Update 3](adr/0014-assistant-evals.md)).
+- **`f-romcom-2000-2004`** got an answer with no movies in it. It hadn't failed before; one run
+  doesn't say whether it's the model or the scenario.
+- **`x-code`** asks for a Python function. The model used to write one; a prompt rule stopped it,
+  and this scenario keeps it stopped.
+
+The same run is a [CI gate](../.github/workflows/assistant-evals.yml) on every pull request that
+touches the assistant, its tools' services or the evals. It fails under 91% and puts the pass
+rate and failed checks on the run's page. The README lists
+[what the evals caught](../README.md#what-the-evals-caught).
+
+In Grafana, the **Assistant (LLM)** dashboard shows the run as it happens:
+
+![Grafana: the assistant's answers, time to first token, tokens and cost](images/grafana-assistant.png)
+
+- **Time to first token:** about 5 s at p50. Tool calls come first, so this is most of the wait.
+- **Tokens per answer:** about 3,400 in, 105 out. Every model call resends the system prompt,
+  the history and the tool results, and an answer makes 2.4 calls on average.
+- **Cost:** tokens times list prices kept in Prometheus rules, about $0.0004 an answer on
+  gpt-6-luna.
+- **Failed tool calls:** the 1 here is recommendation-service stopped on purpose. Spring AI's own
+  metric records that call as a success ([ADR-0008 Update 3](adr/0008-observability-otel-prometheus-grafana.md)).
+
+Next: a grounding check inside the service, so an invented title never reaches the user, and an
+LLM judge for what the catalog can't check, whether a movie fits the request.

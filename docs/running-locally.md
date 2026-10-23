@@ -125,13 +125,15 @@ with its `local` profile; its README has the details.
 
 - Jaeger UI: http://localhost:16686
 - Prometheus: http://localhost:9090 (one scrape target per service)
-- Grafana: http://localhost:3001, no login needed to view (`admin`/`admin` to edit). Three
+- Grafana: http://localhost:3001, no login needed to view (`admin`/`admin` to edit). Four
   dashboards are provisioned from `infra/grafana/provisioning/dashboards/json/`, in the Movies
   folder:
   - **Service overview (RED):** rate, errors and latency per service and per gateway route;
   - **Resilience:** circuit breakers, recommendation fallbacks and connection pools, the one to
     watch during `make chaos`;
-  - **Events and JVM:** Kafka lag, the review outbox backlog and JVM memory.
+  - **Events and JVM:** Kafka lag, the review outbox backlog and JVM memory;
+  - **Assistant (LLM):** answers, time to first token, tokens, cost and tool calls, with
+    `make assistant` (or `make eval-up eval-metrics` for the eval stack). ADR-0008 Update 3.
 
   They're read-only in the UI: edit the JSON and Grafana reloads it. ADR-0008 Update 2 explains
   each panel's metrics. [preset-queries.md](preset-queries.md) lists the same queries as plain

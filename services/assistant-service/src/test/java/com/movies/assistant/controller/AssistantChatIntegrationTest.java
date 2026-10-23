@@ -7,6 +7,7 @@ import com.movies.assistant.exception.GlobalExceptionHandler;
 import com.movies.assistant.support.OpenAiStream;
 import com.movies.assistant.support.PostgresTestContainersConfig;
 import com.movies.assistant.support.StubHttpServer;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -74,6 +75,9 @@ class AssistantChatIntegrationTest {
     @Autowired
     private ChatMemory chatMemory;
 
+    @Autowired
+    private MeterRegistry meterRegistry;
+
     @LocalServerPort
     private int port;
 
@@ -103,8 +107,13 @@ class AssistantChatIntegrationTest {
     @DisplayName("streams the answer as conversation, token, tools and done events")
     void streamsAnswerAsEvents() throws Exception {
         stub.enqueue(COMPLETIONS, OpenAiStream.text("Try ", "Heat (1995)."));
+        long firstTokens = firstTokenCount();
+        double done = answers("done");
 
         List<Event> events = chat("user-1", "{\"message\":\"Something tense\"}");
+
+        assertThat(firstTokenCount()).isEqualTo(firstTokens + 1);
+        assertThat(answers("done")).isEqualTo(done + 1);
 
         // OpenAI's first chunk carries only the role and an empty content; it produces no event.
         assertThat(events).extracting(Event::name)
@@ -135,6 +144,7 @@ class AssistantChatIntegrationTest {
                   "genres":["Action","Crime"],"cast":["Al Pacino"],"imdbRating":8.2}],
                  "page":{"size":8,"number":0,"totalElements":1,"totalPages":1}}""");
         stub.enqueue(COMPLETIONS, OpenAiStream.text("Heat is a classic heist movie."));
+        double successes = toolCalls("searchMovies", "success");
 
         List<Event> events = chat("user-1", "{\"message\":\"A good heist movie\"}");
 
@@ -158,6 +168,7 @@ class AssistantChatIntegrationTest {
         assertThat(json.readTree(call.get("arguments").asText()).get("genre").asText()).isEqualTo("Crime");
         assertThat(call.get("result").asText()).isEqualTo(toolMessage.get("content").asText());
         assertThat(call.get("failed").asBoolean()).isFalse();
+        assertThat(toolCalls("searchMovies", "success")).isEqualTo(successes + 1);
     }
 
     @Test
@@ -182,8 +193,12 @@ class AssistantChatIntegrationTest {
                 "{\"description\":\"first contact\"}"));
         stub.enqueueJson(SEARCH, 503, "{\"error\":\"down\"}");
         stub.enqueue(COMPLETIONS, OpenAiStream.text("Search is unavailable right now."));
+        double failures = toolCalls("findMoviesByDescription", "failure");
 
         List<Event> events = chat("user-1", "{\"message\":\"Quiet sci-fi about first contact\"}");
+
+        // Spring AI's own tool metric says error="none" here; this counter is the one to alert on.
+        assertThat(toolCalls("findMoviesByDescription", "failure")).isEqualTo(failures + 1);
 
         assertThat(events.getLast().name()).isEqualTo("done");
         assertThat(lastMessage(completionRequest(1), "tool").get("content").asText())
@@ -204,12 +219,15 @@ class AssistantChatIntegrationTest {
             stub.enqueueJson(SEARCH, 200, "{\"content\":[]}");
         }
         stub.enqueue(COMPLETIONS, OpenAiStream.text("Nothing matched."));
+        double calls = toolCalls("searchMovies", "success") + toolCalls("searchMovies", "failure");
 
         List<Event> events = chat("user-1", "{\"message\":\"A heist movie\"}");
 
         assertThat(events.getLast().name()).isEqualTo("done");
         assertThat(answerText(events)).isEqualTo("Nothing matched.");
         assertThat(stub.requestsTo(SEARCH)).hasSize(3);
+        // The fourth call is refused before the tool runs, so it isn't counted.
+        assertThat(toolCalls("searchMovies", "success") + toolCalls("searchMovies", "failure")).isEqualTo(calls + 3);
         assertThat(lastMessage(completionRequest(4), "tool").get("content").asText()).containsIgnoringCase("limit");
     }
 
@@ -218,8 +236,11 @@ class AssistantChatIntegrationTest {
     void providerFailureEndsWithErrorEvent() throws Exception {
         stub.enqueueJson(COMPLETIONS, 401,
                 "{\"error\":{\"message\":\"Incorrect API key provided\",\"type\":\"invalid_request_error\"}}");
+        double errors = answers("error");
 
         List<Event> events = chat("user-1", "{\"message\":\"Hi\"}");
+
+        assertThat(answers("error")).isEqualTo(errors + 1);
 
         assertThat(events).extracting(Event::name).containsExactly("conversation", "error");
         JsonNode error = json.readTree(events.getLast().data());
@@ -296,6 +317,8 @@ class AssistantChatIntegrationTest {
         CountDownLatch release = new CountDownLatch(1);
         stub.enqueue(COMPLETIONS, OpenAiStream.unfinished(release, "Try "));
 
+        double cancelled = answers("cancelled");
+
         // Called directly to control the cancel. The OpenAI SDK's close() waits for the next
         // streamed line, so the stub ends the stream 500ms after the cancel.
         List<ServerSentEvent<Object>> events;
@@ -316,6 +339,7 @@ class AssistantChatIntegrationTest {
         assertThat(events).extracting(ServerSentEvent::event).containsExactly("conversation", "token");
         Object conversationId = ((Map<?, ?>) events.getFirst().data()).get("conversationId");
         assertThat(chatMemory.get(conversationId.toString())).isEmpty();
+        assertThat(answers("cancelled")).isEqualTo(cancelled + 1);
     }
 
     @Test
@@ -450,5 +474,17 @@ class AssistantChatIntegrationTest {
         } catch (IOException ex) {
             throw new IllegalStateException(ex);
         }
+    }
+
+    private long firstTokenCount() {
+        return meterRegistry.get("assistant.chat.first.token").timer().count();
+    }
+
+    private double answers(String outcome) {
+        return meterRegistry.get("assistant.chat.answers").tag("outcome", outcome).counter().count();
+    }
+
+    private double toolCalls(String tool, String outcome) {
+        return meterRegistry.get("assistant.tool.calls").tag("tool", tool).tag("outcome", outcome).counter().count();
     }
 }

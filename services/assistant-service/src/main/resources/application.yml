@@ -79,6 +79,12 @@ management:
     distribution:
       slo:
         http.server.requests: 50ms,100ms,250ms,500ms,1s,2s,4s,8s
+        # Model calls and the first token take seconds, not milliseconds: about 4-5s to the first
+        # token on gpt-6-luna (ADR-0013), more when tool calls come first.
+        "[gen_ai.client.operation]": 250ms,500ms,1s,2s,4s,8s,16s,32s
+        assistant.chat.first.token: 500ms,1s,2s,4s,8s,16s,32s
+        # A tool call is one downstream HTTP call, bounded by the 6s read timeout below.
+        spring.ai.tool: 50ms,100ms,250ms,500ms,1s,2s,4s,8s
   tracing:
     sampling:
       probability: 1.0

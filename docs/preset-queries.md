@@ -49,6 +49,20 @@ look down.
 | Heap used against its cap | `sum by (job) (jvm_memory_used_bytes{area="heap"}) / sum by (job) (jvm_memory_max_bytes{area="heap"})` | `04_resource_exhaustion.sh` |
 | Share of time in GC | `sum by (job) (rate(jvm_gc_pause_seconds_sum[5m]))` | `04_resource_exhaustion.sh` |
 
+## Is the assistant answering, and what does it cost?
+
+From the Assistant (LLM) dashboard (ADR-0008 Update 3).
+
+| Question | Query | Check with |
+|---|---|---|
+| Answers that ended in an error | `sum(rate(assistant_chat_answers_total{outcome="error"}[5m]))` | an invalid `OPENAI_API_KEY` |
+| p95 time to first token | `histogram_quantile(0.95, sum by (le) (rate(assistant_chat_first_token_seconds_bucket[5m])))` | `03_network_fault.sh delay` on search-service |
+| Failed tool calls, by tool | `sum by (tool) (rate(assistant_tool_calls_total{outcome="failure"}[5m]))` | `02_service_kill.sh recommendation-service` |
+| Model cost per hour (list prices, upper bound) | `sum by (gen_ai_request_model) (sum by (gen_ai_request_model, gen_ai_token_type) (rate(gen_ai_client_token_usage_total{gen_ai_token_type=~"input\|output"}[5m])) * on (gen_ai_request_model, gen_ai_token_type) gen_ai_price_usd_per_million_tokens) / 1e6 * 3600` | `make eval` |
+
+Spring AI's own `spring_ai_tool_seconds_count` tags a failed tool call `error="none"`; use
+`assistant_tool_calls_total` for failures.
+
 ## What the presets can't see
 
 - **Container memory against `mem_limit`:** there's no cAdvisor. An OOM kill shows only as

@@ -5,12 +5,15 @@
 MongoDB's `sample-app-java-mflix` monolith, rebuilt as six Spring Boot services behind a gateway,
 then load-tested and broken on purpose. Kafka keeps the read models in sync, an outbox makes each
 review and its event atomic, and circuit breakers turn a dead dependency into a degraded answer
-instead of an outage. Every claim below links to the ADR, load-test result or chaos finding behind
-it.
+instead of an outage. An LLM assistant answers movie questions by calling the system's own APIs
+as tools. 34 eval scenarios score its answers against the catalog, a CI gate runs them on every
+pull request that touches it, and a Grafana dashboard tracks its tokens, cost and time to first
+token. Every claim below links to the ADR, load-test result, chaos finding or eval run behind it.
 
 ![make demo: a new user goes from cold-start to personal recommendations](docs/images/demo.gif)
 
-**Start here:** [the demo](docs/demo.md) (four acts, with dashboards and traces) ·
+**Start here:** [the demo](docs/demo.md) (five acts, with dashboards and traces) ·
+[what the evals caught](#what-the-evals-caught) ·
 [the design review](docs/design-review.md) (consistency, failure modes, timeout budgets, what
 breaks at 10x) · [the ADRs](docs/adr/README.md) (14 decisions, with their evidence)
 
@@ -27,7 +30,7 @@ breaks at 10x) · [the ADRs](docs/adr/README.md) (14 decisions, with their evide
 | Observability | OpenTelemetry traces in Jaeger; 4 Grafana dashboards provisioned as code, one for the assistant's tokens, cost and time to first token | [ADR-0008](docs/adr/0008-observability-otel-prometheus-grafana.md) Updates 2–3; [screenshots in the demo](docs/demo.md#act-2-under-load) |
 | Capacity sized from measurement | per-container memory limits; the stack fits an 8 GB laptop | [ADR-0010](docs/adr/0010-load-test-timeout-budget-mismatch.md) Updates 2, 3, 8, 9 |
 | An LLM assistant that uses the system's own APIs as tools | assistant-service on Spring AI 2, streaming over SSE | [ADR-0013](docs/adr/0013-assistant-service-spring-ai-openai.md); [trace of a turn](docs/demo.md#act-4-the-assistant-v1) |
-| Evals for the LLM assistant, scored against the catalog | 34 scenarios; each recommended title is looked up in the catalog and checked against the request | [`evals/`](evals/): 33/34 passed, 100% of recommended titles exist in the catalog, $0.015 a run on gpt-6-luna; a [CI gate](.github/workflows/assistant-evals.yml) fails under 91% ([ADR-0014](docs/adr/0014-assistant-evals.md)) |
+| Evals for the LLM assistant, scored against the catalog | 34 scenarios; each recommended title is looked up in the catalog and checked against the request | [`evals/`](evals/): 32–34 of 34 pass in the last three CI runs, and 100% of recommended titles exist in the catalog, for about $0.015 a run on gpt-6-luna; the [CI gate](.github/workflows/assistant-evals.yml) fails under 91% ([ADR-0014](docs/adr/0014-assistant-evals.md)) |
 
 ## Findings tests didn't catch
 
@@ -53,6 +56,34 @@ CI. These still got through, and only load or a real outage showed them:
 5. **A cache race kept a stale list for 5 minutes.** A list computed between two rating events
    could be cached after the second event's eviction. Found while building the demo
    ([#31](https://github.com/advaitsane/movie-recommendation-system/pull/31)).
+
+## What the evals caught
+
+The assistant's tests run against a stub of the OpenAI API, so they prove the wiring, not the
+answers. The evals run the real model against the real catalog. Each finding came with a number
+before and after:
+
+1. **The model didn't follow two rules.** Asked for a Python function, it wrote one (3 of 3
+   runs). It translated a catalog title into French (2 of 4). Two prompt rules fixed both (4 of
+   4 each), taking the set from 31 to 33 of 34 passing and grounding from 98.9% to 100%
+   ([ADR-0014](docs/adr/0014-assistant-evals.md)).
+2. **Vector search ranked a documentary first** for "quiet sci-fi about first contact", and the
+   model picked it. A genre pre-filter on `$vectorSearch` took constraints to 100%, but the model
+   doesn't always send the genre, so the scenario still fails some runs
+   ([ADR-0014 Updates 2–3](docs/adr/0014-assistant-evals.md)).
+3. **A timeout budget that didn't nest, again.** recommendation-service looked up its three seed
+   movies one after another, 3 s each, inside the assistant's 6 s tool timeout, and a scenario
+   failed in 2 of 6 runs. One parallel 3 s deadline fixed it (5 of 5)
+   ([ADR-0010 Update 11](docs/adr/0010-load-test-timeout-budget-mismatch.md)).
+4. **A full collection scan on every genre-filtered search.** `distinct('genres')` read all 21,349 movies,
+   embeddings included: 37.6 s on a memory-starved host. An index made it 57 ms
+   ([ADR-0002](docs/adr/0002-search-index-cqrs-kafka-sync.md)).
+5. **Failed tool calls were counted as successes.** Spring AI turns a tool's exception into the
+   result the model sees, and its metric records `error="none"`. A counter in the tool wrapper now
+   shows them ([ADR-0008 Update 3](docs/adr/0008-observability-otel-prometheus-grafana.md)).
+6. **The harness had bugs of its own.** It read "**V for Vendetta** (2005, 8.2)" as no
+   recommendation, so five real movies scored as missing. Each scorer fix is measured with
+   `--rescore` on saved answers, so it isn't mixed up with the model's run-to-run variance.
 
 ## Architecture
 
@@ -136,9 +167,11 @@ links the ADRs behind it.
 | 11 | assistant-service (LLM movie assistant with tool calling, Spring AI) | ✅ |
 | 12 | One-command start, Grafana dashboards, a demo, a design review (#25–#32) | ✅ |
 | 13 | Assistant evals scored against the catalog, and a CI gate on them (#34–#37) | ✅ |
+| 14 | Fixes the evals found, tool-call logs for the evals, an assistant dashboard (#38–#42) | ✅ |
 
-Known limitations and what comes next (an LLM judge for the evals, the Responses API so they can
-run on gpt-6.1-sol, then Kubernetes on EKS) are in the
+Known limitations and what comes next (an LLM judge for the evals, a grounding check inside the
+assistant, the Responses API so the evals can run on gpt-6.1-sol, then Kubernetes on EKS) are in
+the
 [design review](docs/design-review.md#known-limitations).
 
 ## Repo layout

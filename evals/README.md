@@ -9,6 +9,9 @@ against the model's own account of its answer. ADR-0014 explains the design.
 | Prompt v2: titles never translated, stricter off-topic rule | 33/34 (97.1%) | 100% (89/89) | 98.3% | $0.015 |
 | Prompt v2, three more runs to set the CI threshold | 33, 33, 32 | 100% | 98.4% | $0.014 |
 | Genre filter on vector search (`d-first-contact` passes) | 33/34 | 100% (89/89) | 100% (62/62) | $0.014 |
+| CI, parallel seed lookups in recommendation-service (#39) | 34/34 | 100% | 100% | $0.014 |
+| CI, tool calls saved in the results (#41) | 33/34 | 100% | 98.2% | $0.014 |
+| CI, assistant dashboard (#42) | 32/34 | 100% | 98.3% | $0.015 |
 
 The first two rows were rescored by the current scorers (`--rescore`). The results are in [`results/`](results/).
 

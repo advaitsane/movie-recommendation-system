@@ -29,7 +29,7 @@ breaks at 10x) · [the ADRs](docs/adr/README.md) (14 decisions, with their evide
 | Chaos engineering | dependency kill, service kill, network delay, memory starvation | [`chaos/`](chaos/) scripts and results; [ADR-0011](docs/adr/0011-chaos-testing.md): 4 experiments and 7 follow-up updates |
 | Observability | OpenTelemetry traces in Jaeger; 4 Grafana dashboards provisioned as code, one for the assistant's tokens, cost and time to first token | [ADR-0008](docs/adr/0008-observability-otel-prometheus-grafana.md) Updates 2–3; [screenshots in the demo](docs/demo.md#act-2-under-load) |
 | Capacity sized from measurement | per-container memory limits; the stack fits an 8 GB laptop | [ADR-0010](docs/adr/0010-load-test-timeout-budget-mismatch.md) Updates 2, 3, 8, 9 |
-| An LLM assistant that uses the system's own APIs as tools | assistant-service on Spring AI 2, streaming over SSE | [ADR-0013](docs/adr/0013-assistant-service-spring-ai-openai.md); [trace of a turn](docs/demo.md#act-4-the-assistant-v1) |
+| An LLM assistant that uses the system's own APIs as tools | assistant-service on Spring AI 2, streaming over SSE | [ADR-0013](docs/adr/0013-assistant-service-spring-ai-openai.md); [trace of a turn](docs/demo.md#act-4-the-assistant) |
 | Evals for the LLM assistant, scored against the catalog | 34 scenarios; each recommended title is looked up in the catalog and checked against the request | [`evals/`](evals/): 32–34 of 34 pass in the last three CI runs, and 100% of recommended titles exist in the catalog, for about $0.015 a run on gpt-6-luna; the [CI gate](.github/workflows/assistant-evals.yml) fails under 91% ([ADR-0014](docs/adr/0014-assistant-evals.md)) |
 
 ## Findings tests didn't catch
@@ -50,9 +50,9 @@ CI. These still got through, and only load or a real outage showed them:
    ([ADR-0011 Experiment 1](docs/adr/0011-chaos-testing.md)).
 4. **The timeout budgets didn't nest.** recommendation-service could spend 5 s on its search call
    inside a 4 s gateway route, so the gateway gave up just before the fallback answered
-   ([ADR-0010](docs/adr/0010-load-test-timeout-budget-mismatch.md)). A second mismatch, three
-   search calls in sequence, is still open; the
-   [design review](docs/design-review.md#timeout-budget) has the fix.
+   ([ADR-0010](docs/adr/0010-load-test-timeout-budget-mismatch.md)). A second one, three search
+   calls in sequence, came back in the assistant's evals; the calls now run in parallel under one
+   3 s deadline ([ADR-0010 Update 11](docs/adr/0010-load-test-timeout-budget-mismatch.md)).
 5. **A cache race kept a stale list for 5 minutes.** A list computed between two rating events
    could be cached after the second event's eviction. Found while building the demo
    ([#31](https://github.com/advaitsane/movie-recommendation-system/pull/31)).

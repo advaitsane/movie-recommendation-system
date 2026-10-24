@@ -133,29 +133,30 @@ make eval           # 34 scenarios, about 3 minutes and $0.015 on gpt-6-luna
 ```
 
 Each scenario prints its verdict and, when it fails, the check that failed. From the CI run on
-[#42](https://github.com/advaitsane/movie-recommendation-system/pull/42), trimmed:
+[#44](https://github.com/advaitsane/movie-recommendation-system/pull/44), trimmed:
 
 ```text
-PASS  f-90s-comedies-7               10.3s  tools=3
-FAIL  f-romcom-2000-2004              5.5s  tools=3  count: 0 items, expected [1..]
-FAIL  d-first-contact                 4.8s  tools=1  constraints: The Visit: genres=['Documentary'] not contains 'Sci-Fi'
-PASS  s-like-inception                9.8s  tools=3
-PASS  p-scifi-fan                     3.9s  tools=1
-PASS  x-code                          1.1s  tools=0
-  "passed": 32,
-  "pass_rate": 0.941,
+PASS  f-90s-comedies-7                7.7s  tools=3
+PASS  f-romcom-2000-2004              5.6s  tools=3
+PASS  d-first-contact                 3.5s  tools=1
+PASS  s-like-inception                5.3s  tools=2
+PASS  p-scifi-fan                     2.1s  tools=1
+PASS  x-code                          0.9s  tools=0
+  "passed": 34,
+  "pass_rate": 1.0,
   "grounding_rate": 1.0,
-  "constraint_rate": 0.983,
-  "cost_usd": 0.0146,
+  "constraint_rate": 1.0,
+  "cost_usd": 0.0152,
 ```
 
 - **Grounding 100%:** every movie the model recommended exists in the catalog.
-- **`d-first-contact`** failed when the model left out the genre filter it has, and vector
-  search returned a documentary among the sci-fi. The saved tool calls showed it: 6 of 8 runs sent
-  the genre, and those 6 passed. A clearer tool description fixed it, 12 of 12
+- **`d-first-contact`** failed in three of five CI gates before this one (#38, #42, #43): the
+  model left out the genre filter it has, and vector search returned a documentary among the
+  sci-fi. The saved tool calls showed the pattern: 6 of 8 runs sent the genre, and those 6
+  passed. The tool description's example was almost word for word this scenario's request, so
+  the test had been grading a request the model was shown. A neutral example and a rule to send
+  the genre whenever a request implies one fixed it: 12 of 12, then 34 of 34 on this run
   ([ADR-0014 Update 5](adr/0014-assistant-evals.md)).
-- **`f-romcom-2000-2004`** got an answer with no movies in it. It hadn't failed before; one run
-  doesn't say whether it's the model or the scenario.
 - **`x-code`** asks for a Python function. The model used to write one; a prompt rule stopped it,
   and this scenario keeps it stopped.
 

@@ -150,9 +150,10 @@ PASS  x-code                          1.1s  tools=0
 ```
 
 - **Grounding 100%:** every movie the model recommended exists in the catalog.
-- **`d-first-contact`** is a real, open failure. Vector search returns a documentary among the
-  sci-fi when the model leaves out the genre filter it has
-  ([ADR-0014 Update 3](adr/0014-assistant-evals.md)).
+- **`d-first-contact`** failed when the model left out the genre filter it has, and vector
+  search returned a documentary among the sci-fi. The saved tool calls showed it: 6 of 8 runs sent
+  the genre, and those 6 passed. A clearer tool description fixed it, 12 of 12
+  ([ADR-0014 Update 5](adr/0014-assistant-evals.md)).
 - **`f-romcom-2000-2004`** got an answer with no movies in it. It hadn't failed before; one run
   doesn't say whether it's the model or the scenario.
 - **`x-code`** asks for a Python function. The model used to write one; a prompt rule stopped it,

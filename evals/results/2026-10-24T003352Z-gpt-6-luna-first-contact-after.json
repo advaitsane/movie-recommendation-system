@@ -1,0 +1,1889 @@
+{
+  "summary": {
+    "scenarios": 12,
+    "passed": 12,
+    "pass_rate": 1.0,
+    "grounding_rate": 1.0,
+    "claims": 17,
+    "ungrounded": 0,
+    "constraint_rate": 1.0,
+    "constraint_items": 17,
+    "errors": 0,
+    "models": [
+      "gpt-6-luna"
+    ],
+    "tokens": {
+      "input": 27512,
+      "output": 1031
+    },
+    "cost_usd": 0.0033,
+    "cost_is_upper_bound": true,
+    "model_calls": 24,
+    "tool_calls": 12,
+    "tool_errors": 0,
+    "first_token_s": {
+      "p50": 2.36,
+      "p95": 7.98
+    },
+    "total_s": {
+      "p50": 2.89,
+      "p95": 8.62
+    },
+    "aborted": null
+  },
+  "results": [
+    {
+      "id": "d-first-contact",
+      "tags": [
+        "description"
+      ],
+      "message": "Quiet science fiction about first contact with aliens",
+      "answer": "- **The Day the Earth Stood Still (1951)** — A quietly paced sci-fi classic about an alien arriving on Earth with a message for humanity.  \n- **Alien Nation (1988)** — Explores first contact through the gradual integration of aliens into human society, though it leans more toward crime and action.",
+      "first_token_s": 7.976722032006364,
+      "total_s": 8.62,
+      "error": null,
+      "tools": [
+        {
+          "name": "findMoviesByDescription",
+          "arguments": {
+            "description": "Quiet, thoughtful science fiction about first contact with aliens",
+            "genre": "Sci-Fi"
+          },
+          "result": [
+            {
+              "id": "573a1398f29313caabce9ab5",
+              "title": "The Quiet Earth",
+              "year": 1985,
+              "genres": [
+                "Drama",
+                "Mystery",
+                "Sci-Fi"
+              ],
+              "imdbRating": 6.9,
+              "plot": "A man named Zac Hobson awakens to find himself alone in the world. In a desperate attempt to search for others, he finds only two who have their own agenda."
+            },
+            {
+              "id": "573a13e0f29313caabdba44e",
+              "title": "The Quiet Hour",
+              "year": 2014,
+              "genres": [
+                "Drama",
+                "Sci-Fi",
+                "Thriller"
+              ],
+              "imdbRating": 6.6,
+              "plot": "In the aftermath of an alien invasion, a feisty teenage girl sets out to protect her farm from human scavengers who will stop at nothing in order to survive in a post-apocalyptic world."
+            },
+            {
+              "id": "573a1398f29313caabceac9c",
+              "title": "Alien Nation",
+              "year": 1988,
+              "genres": [
+                "Action",
+                "Crime",
+                "Sci-Fi"
+              ],
+              "imdbRating": 6.3,
+              "plot": "A few years from now, Earth will have the first contact with an alien civilization. These aliens, known as Newcomers, slowly begin to be integrated into human society after years of quarantine."
+            },
+            {
+              "id": "573a1394f29313caabcdeaa3",
+              "title": "The Day the Earth Stood Still",
+              "year": 1951,
+              "genres": [
+                "Sci-Fi"
+              ],
+              "imdbRating": 7.8,
+              "plot": "An alien lands and tells the people of Earth that they must live peacefully or be destroyed as a danger to other planets."
+            },
+            {
+              "id": "573a1394f29313caabcdf43f",
+              "title": "Invaders from Mars",
+              "year": 1953,
+              "genres": [
+                "Horror",
+                "Sci-Fi"
+              ],
+              "imdbRating": 6.5,
+              "plot": "A young boy learns that space aliens are taking over the minds of earthlings."
+            },
+            {
+              "id": "573a13bff29313caabd5f0f5",
+              "title": "Alien Trespass",
+              "year": 2009,
+              "genres": [
+                "Comedy",
+                "Horror",
+                "Sci-Fi"
+              ],
+              "imdbRating": 5.7,
+              "plot": "After crash landing near a desert town, an alien enlists the help of a local waitress to re-capture a monster that escaped from the wreckage of his space ship."
+            },
+            {
+              "id": "573a1396f29313caabce4f7c",
+              "title": "Dark Star",
+              "year": 1974,
+              "genres": [
+                "Comedy",
+                "Sci-Fi"
+              ],
+              "imdbRating": 6.5,
+              "plot": "In the far reaches of space, a small crew, 20 years into their solitary mission, find things beginning to go hilariously wrong."
+            },
+            {
+              "id": "573a1396f29313caabce4752",
+              "title": "Silent Running",
+              "year": 1972,
+              "genres": [
+                "Drama",
+                "Sci-Fi"
+              ],
+              "imdbRating": 6.7,
+              "plot": "In a future where all flora is extinct on Earth, an astronaut is given orders to destroy the last of Earth's botany, kept in a greenhouse aboard a spacecraft."
+            }
+          ],
+          "failed": false
+        }
+      ],
+      "model": "gpt-6-luna",
+      "tokens": {
+        "input": 2300,
+        "output": 102
+      },
+      "model_calls": 2,
+      "tool_calls": {
+        "findMoviesByDescription": 1
+      },
+      "tool_errors": 0,
+      "claims": [
+        "The Day the Earth Stood Still (1951)",
+        "Alien Nation (1988)"
+      ],
+      "ungrounded": [],
+      "constraint_items": 2,
+      "constraint_satisfied": 2,
+      "checks": [
+        {
+          "name": "answered",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "grounding",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "count",
+          "passed": true,
+          "detail": "2 items, expected [1..]"
+        },
+        {
+          "name": "constraints",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true,
+      "attempt": 1
+    },
+    {
+      "id": "d-first-contact",
+      "tags": [
+        "description"
+      ],
+      "message": "Quiet science fiction about first contact with aliens",
+      "answer": "I didn’t find a strong match for quiet first contact; these are the closest results:\n\n- **The Day the Earth Stood Still (1951)** — A contemplative sci-fi classic about an alien visitor urging humanity to live peacefully.\n- **Alien Nation (1988)** — Explores the gradual integration of aliens into human society after first contact.",
+      "first_token_s": 2.7155613689974416,
+      "total_s": 3.48,
+      "error": null,
+      "tools": [
+        {
+          "name": "findMoviesByDescription",
+          "arguments": {
+            "description": "Quiet, contemplative science fiction about first contact with aliens",
+            "genre": "Sci-Fi"
+          },
+          "result": [
+            {
+              "id": "573a1398f29313caabce9ab5",
+              "title": "The Quiet Earth",
+              "year": 1985,
+              "genres": [
+                "Drama",
+                "Mystery",
+                "Sci-Fi"
+              ],
+              "imdbRating": 6.9,
+              "plot": "A man named Zac Hobson awakens to find himself alone in the world. In a desperate attempt to search for others, he finds only two who have their own agenda."
+            },
+            {
+              "id": "573a13e0f29313caabdba44e",
+              "title": "The Quiet Hour",
+              "year": 2014,
+              "genres": [
+                "Drama",
+                "Sci-Fi",
+                "Thriller"
+              ],
+              "imdbRating": 6.6,
+              "plot": "In the aftermath of an alien invasion, a feisty teenage girl sets out to protect her farm from human scavengers who will stop at nothing in order to survive in a post-apocalyptic world."
+            },
+            {
+              "id": "573a1398f29313caabceac9c",
+              "title": "Alien Nation",
+              "year": 1988,
+              "genres": [
+                "Action",
+                "Crime",
+                "Sci-Fi"
+              ],
+              "imdbRating": 6.3,
+              "plot": "A few years from now, Earth will have the first contact with an alien civilization. These aliens, known as Newcomers, slowly begin to be integrated into human society after years of quarantine."
+            },
+            {
+              "id": "573a1394f29313caabcdeaa3",
+              "title": "The Day the Earth Stood Still",
+              "year": 1951,
+              "genres": [
+                "Sci-Fi"
+              ],
+              "imdbRating": 7.8,
+              "plot": "An alien lands and tells the people of Earth that they must live peacefully or be destroyed as a danger to other planets."
+            },
+            {
+              "id": "573a13bff29313caabd5f0f5",
+              "title": "Alien Trespass",
+              "year": 2009,
+              "genres": [
+                "Comedy",
+                "Horror",
+                "Sci-Fi"
+              ],
+              "imdbRating": 5.7,
+              "plot": "After crash landing near a desert town, an alien enlists the help of a local waitress to re-capture a monster that escaped from the wreckage of his space ship."
+            },
+            {
+              "id": "573a1396f29313caabce4f7c",
+              "title": "Dark Star",
+              "year": 1974,
+              "genres": [
+                "Comedy",
+                "Sci-Fi"
+              ],
+              "imdbRating": 6.5,
+              "plot": "In the far reaches of space, a small crew, 20 years into their solitary mission, find things beginning to go hilariously wrong."
+            },
+            {
+              "id": "573a1394f29313caabcdf43f",
+              "title": "Invaders from Mars",
+              "year": 1953,
+              "genres": [
+                "Horror",
+                "Sci-Fi"
+              ],
+              "imdbRating": 6.5,
+              "plot": "A young boy learns that space aliens are taking over the minds of earthlings."
+            },
+            {
+              "id": "573a1396f29313caabce4752",
+              "title": "Silent Running",
+              "year": 1972,
+              "genres": [
+                "Drama",
+                "Sci-Fi"
+              ],
+              "imdbRating": 6.7,
+              "plot": "In a future where all flora is extinct on Earth, an astronaut is given orders to destroy the last of Earth's botany, kept in a greenhouse aboard a spacecraft."
+            }
+          ],
+          "failed": false
+        }
+      ],
+      "model": "gpt-6-luna",
+      "tokens": {
+        "input": 2301,
+        "output": 108
+      },
+      "model_calls": 2,
+      "tool_calls": {
+        "findMoviesByDescription": 1
+      },
+      "tool_errors": 0,
+      "claims": [
+        "The Day the Earth Stood Still (1951)",
+        "Alien Nation (1988)"
+      ],
+      "ungrounded": [],
+      "constraint_items": 2,
+      "constraint_satisfied": 2,
+      "checks": [
+        {
+          "name": "answered",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "grounding",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "count",
+          "passed": true,
+          "detail": "2 items, expected [1..]"
+        },
+        {
+          "name": "constraints",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true,
+      "attempt": 2
+    },
+    {
+      "id": "d-first-contact",
+      "tags": [
+        "description"
+      ],
+      "message": "Quiet science fiction about first contact with aliens",
+      "answer": "- **The Day the Earth Stood Still (1951)** — A restrained science-fiction story of an alien visitor whose arrival puts humanity’s future in question. It’s a quieter first-contact fit than the more action-heavy options returned.",
+      "first_token_s": 2.1740271899980144,
+      "total_s": 2.65,
+      "error": null,
+      "tools": [
+        {
+          "name": "findMoviesByDescription",
+          "arguments": {
+            "description": "Quiet, contemplative science fiction about first contact with aliens",
+            "genre": "Sci-Fi"
+          },
+          "result": [
+            {
+              "id": "573a1398f29313caabce9ab5",
+              "title": "The Quiet Earth",
+              "year": 1985,
+              "genres": [
+                "Drama",
+                "Mystery",
+                "Sci-Fi"
+              ],
+              "imdbRating": 6.9,
+              "plot": "A man named Zac Hobson awakens to find himself alone in the world. In a desperate attempt to search for others, he finds only two who have their own agenda."
+            },
+            {
+              "id": "573a13e0f29313caabdba44e",
+              "title": "The Quiet Hour",
+              "year": 2014,
+              "genres": [
+                "Drama",
+                "Sci-Fi",
+                "Thriller"
+              ],
+              "imdbRating": 6.6,
+              "plot": "In the aftermath of an alien invasion, a feisty teenage girl sets out to protect her farm from human scavengers who will stop at nothing in order to survive in a post-apocalyptic world."
+            },
+            {
+              "id": "573a1398f29313caabceac9c",
+              "title": "Alien Nation",
+              "year": 1988,
+              "genres": [
+                "Action",
+                "Crime",
+                "Sci-Fi"
+              ],
+              "imdbRating": 6.3,
+              "plot": "A few years from now, Earth will have the first contact with an alien civilization. These aliens, known as Newcomers, slowly begin to be integrated into human society after years of quarantine."
+            },
+            {
+              "id": "573a1394f29313caabcdeaa3",
+              "title": "The Day the Earth Stood Still",
+              "year": 1951,
+              "genres": [
+                "Sci-Fi"
+              ],
+              "imdbRating": 7.8,
+              "plot": "An alien lands and tells the people of Earth that they must live peacefully or be destroyed as a danger to other planets."
+            },
+            {
+              "id": "573a13bff29313caabd5f0f5",
+              "title": "Alien Trespass",
+              "year": 2009,
+              "genres": [
+                "Comedy",
+                "Horror",
+                "Sci-Fi"
+              ],
+              "imdbRating": 5.7,
+              "plot": "After crash landing near a desert town, an alien enlists the help of a local waitress to re-capture a monster that escaped from the wreckage of his space ship."
+            },
+            {
+              "id": "573a1396f29313caabce4f7c",
+              "title": "Dark Star",
+              "year": 1974,
+              "genres": [
+                "Comedy",
+                "Sci-Fi"
+              ],
+              "imdbRating": 6.5,
+              "plot": "In the far reaches of space, a small crew, 20 years into their solitary mission, find things beginning to go hilariously wrong."
+            },
+            {
+              "id": "573a1394f29313caabcdf43f",
+              "title": "Invaders from Mars",
+              "year": 1953,
+              "genres": [
+                "Horror",
+                "Sci-Fi"
+              ],
+              "imdbRating": 6.5,
+              "plot": "A young boy learns that space aliens are taking over the minds of earthlings."
+            },
+            {
+              "id": "573a1396f29313caabce4752",
+              "title": "Silent Running",
+              "year": 1972,
+              "genres": [
+                "Drama",
+                "Sci-Fi"
+              ],
+              "imdbRating": 6.7,
+              "plot": "In a future where all flora is extinct on Earth, an astronaut is given orders to destroy the last of Earth's botany, kept in a greenhouse aboard a spacecraft."
+            }
+          ],
+          "failed": false
+        }
+      ],
+      "model": "gpt-6-luna",
+      "tokens": {
+        "input": 2301,
+        "output": 84
+      },
+      "model_calls": 2,
+      "tool_calls": {
+        "findMoviesByDescription": 1
+      },
+      "tool_errors": 0,
+      "claims": [
+        "The Day the Earth Stood Still (1951)"
+      ],
+      "ungrounded": [],
+      "constraint_items": 1,
+      "constraint_satisfied": 1,
+      "checks": [
+        {
+          "name": "answered",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "grounding",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "count",
+          "passed": true,
+          "detail": "1 items, expected [1..]"
+        },
+        {
+          "name": "constraints",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true,
+      "attempt": 3
+    },
+    {
+      "id": "d-first-contact",
+      "tags": [
+        "description"
+      ],
+      "message": "Quiet science fiction about first contact with aliens",
+      "answer": "- **The Day the Earth Stood Still (1951)** — A thoughtful, restrained first-contact story in which an alien urges humanity to live peacefully.",
+      "first_token_s": 2.217006840997783,
+      "total_s": 2.55,
+      "error": null,
+      "tools": [
+        {
+          "name": "findMoviesByDescription",
+          "arguments": {
+            "description": "Quiet science fiction about first contact with aliens",
+            "genre": "Sci-Fi"
+          },
+          "result": [
+            {
+              "id": "573a1398f29313caabceac9c",
+              "title": "Alien Nation",
+              "year": 1988,
+              "genres": [
+                "Action",
+                "Crime",
+                "Sci-Fi"
+              ],
+              "imdbRating": 6.3,
+              "plot": "A few years from now, Earth will have the first contact with an alien civilization. These aliens, known as Newcomers, slowly begin to be integrated into human society after years of quarantine."
+            },
+            {
+              "id": "573a13bff29313caabd5f0f5",
+              "title": "Alien Trespass",
+              "year": 2009,
+              "genres": [
+                "Comedy",
+                "Horror",
+                "Sci-Fi"
+              ],
+              "imdbRating": 5.7,
+              "plot": "After crash landing near a desert town, an alien enlists the help of a local waitress to re-capture a monster that escaped from the wreckage of his space ship."
+            },
+            {
+              "id": "573a1394f29313caabcdeaa3",
+              "title": "The Day the Earth Stood Still",
+              "year": 1951,
+              "genres": [
+                "Sci-Fi"
+              ],
+              "imdbRating": 7.8,
+              "plot": "An alien lands and tells the people of Earth that they must live peacefully or be destroyed as a danger to other planets."
+            },
+            {
+              "id": "573a1398f29313caabce973a",
+              "title": "Creature",
+              "year": 1985,
+              "genres": [
+                "Horror",
+                "Sci-Fi"
+              ],
+              "imdbRating": 4.2,
+              "plot": "A expedition to Titan uncovers an alien being, that goes on a rampage."
+            },
+            {
+              "id": "573a13c7f29313caabd742df",
+              "title": "Prometheus",
+              "year": 2012,
+              "genres": [
+                "Adventure",
+                "Mystery",
+                "Sci-Fi"
+              ],
+              "imdbRating": 7.0,
+              "plot": "Following clues to the origin of mankind a team journey across the universe and find a structure on a distant planet containing a monolithic statue of a humanoid head and stone cylinders of alien blood but they soon find they are not alone."
+            },
+            {
+              "id": "573a139af29313caabcefbcc",
+              "title": "The Arrival",
+              "year": 1996,
+              "genres": [
+                "Action",
+                "Sci-Fi",
+                "Thriller"
+              ],
+              "imdbRating": 6.3,
+              "plot": "Zane, an astronomer, discovers intelligent alien life. But the aliens are keeping a deadly secret, and will do anything to stop Zane from learning it."
+            },
+            {
+              "id": "573a1394f29313caabcdf43f",
+              "title": "Invaders from Mars",
+              "year": 1953,
+              "genres": [
+                "Horror",
+                "Sci-Fi"
+              ],
+              "imdbRating": 6.5,
+              "plot": "A young boy learns that space aliens are taking over the minds of earthlings."
+            },
+            {
+              "id": "573a1399f29313caabcee32e",
+              "title": "Alien Nation: Dark Horizon",
+              "year": 1994,
+              "genres": [
+                "Sci-Fi",
+                "Drama"
+              ],
+              "imdbRating": 6.6,
+              "plot": "Alien life form comes to Earth to rescue his enslaved race."
+            }
+          ],
+          "failed": false
+        }
+      ],
+      "model": "gpt-6-luna",
+      "tokens": {
+        "input": 2268,
+        "output": 65
+      },
+      "model_calls": 2,
+      "tool_calls": {
+        "findMoviesByDescription": 1
+      },
+      "tool_errors": 0,
+      "claims": [
+        "The Day the Earth Stood Still (1951)"
+      ],
+      "ungrounded": [],
+      "constraint_items": 1,
+      "constraint_satisfied": 1,
+      "checks": [
+        {
+          "name": "answered",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "grounding",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "count",
+          "passed": true,
+          "detail": "1 items, expected [1..]"
+        },
+        {
+          "name": "constraints",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true,
+      "attempt": 4
+    },
+    {
+      "id": "d-first-contact",
+      "tags": [
+        "description"
+      ],
+      "message": "Quiet science fiction about first contact with aliens",
+      "answer": "These are the closest matches I found:\n\n- **The Day the Earth Stood Still (1951)** — A thoughtful, understated first-contact story about an alien urging humanity to live peacefully.\n- **Alien Nation (1988)** — Explores how alien newcomers integrate into human society after first contact.",
+      "first_token_s": 2.1285555479989853,
+      "total_s": 2.74,
+      "error": null,
+      "tools": [
+        {
+          "name": "findMoviesByDescription",
+          "arguments": {
+            "description": "Quiet, contemplative science fiction about first contact with aliens",
+            "genre": "Sci-Fi"
+          },
+          "result": [
+            {
+              "id": "573a1398f29313caabce9ab5",
+              "title": "The Quiet Earth",
+              "year": 1985,
+              "genres": [
+                "Drama",
+                "Mystery",
+                "Sci-Fi"
+              ],
+              "imdbRating": 6.9,
+              "plot": "A man named Zac Hobson awakens to find himself alone in the world. In a desperate attempt to search for others, he finds only two who have their own agenda."
+            },
+            {
+              "id": "573a13e0f29313caabdba44e",
+              "title": "The Quiet Hour",
+              "year": 2014,
+              "genres": [
+                "Drama",
+                "Sci-Fi",
+                "Thriller"
+              ],
+              "imdbRating": 6.6,
+              "plot": "In the aftermath of an alien invasion, a feisty teenage girl sets out to protect her farm from human scavengers who will stop at nothing in order to survive in a post-apocalyptic world."
+            },
+            {
+              "id": "573a1398f29313caabceac9c",
+              "title": "Alien Nation",
+              "year": 1988,
+              "genres": [
+                "Action",
+                "Crime",
+                "Sci-Fi"
+              ],
+              "imdbRating": 6.3,
+              "plot": "A few years from now, Earth will have the first contact with an alien civilization. These aliens, known as Newcomers, slowly begin to be integrated into human society after years of quarantine."
+            },
+            {
+              "id": "573a1394f29313caabcdeaa3",
+              "title": "The Day the Earth Stood Still",
+              "year": 1951,
+              "genres": [
+                "Sci-Fi"
+              ],
+              "imdbRating": 7.8,
+              "plot": "An alien lands and tells the people of Earth that they must live peacefully or be destroyed as a danger to other planets."
+            },
+            {
+              "id": "573a13bff29313caabd5f0f5",
+              "title": "Alien Trespass",
+              "year": 2009,
+              "genres": [
+                "Comedy",
+                "Horror",
+                "Sci-Fi"
+              ],
+              "imdbRating": 5.7,
+              "plot": "After crash landing near a desert town, an alien enlists the help of a local waitress to re-capture a monster that escaped from the wreckage of his space ship."
+            },
+            {
+              "id": "573a1396f29313caabce4f7c",
+              "title": "Dark Star",
+              "year": 1974,
+              "genres": [
+                "Comedy",
+                "Sci-Fi"
+              ],
+              "imdbRating": 6.5,
+              "plot": "In the far reaches of space, a small crew, 20 years into their solitary mission, find things beginning to go hilariously wrong."
+            },
+            {
+              "id": "573a1394f29313caabcdf43f",
+              "title": "Invaders from Mars",
+              "year": 1953,
+              "genres": [
+                "Horror",
+                "Sci-Fi"
+              ],
+              "imdbRating": 6.5,
+              "plot": "A young boy learns that space aliens are taking over the minds of earthlings."
+            },
+            {
+              "id": "573a1396f29313caabce4752",
+              "title": "Silent Running",
+              "year": 1972,
+              "genres": [
+                "Drama",
+                "Sci-Fi"
+              ],
+              "imdbRating": 6.7,
+              "plot": "In a future where all flora is extinct on Earth, an astronaut is given orders to destroy the last of Earth's botany, kept in a greenhouse aboard a spacecraft."
+            }
+          ],
+          "failed": false
+        }
+      ],
+      "model": "gpt-6-luna",
+      "tokens": {
+        "input": 2301,
+        "output": 97
+      },
+      "model_calls": 2,
+      "tool_calls": {
+        "findMoviesByDescription": 1
+      },
+      "tool_errors": 0,
+      "claims": [
+        "The Day the Earth Stood Still (1951)",
+        "Alien Nation (1988)"
+      ],
+      "ungrounded": [],
+      "constraint_items": 2,
+      "constraint_satisfied": 2,
+      "checks": [
+        {
+          "name": "answered",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "grounding",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "count",
+          "passed": true,
+          "detail": "2 items, expected [1..]"
+        },
+        {
+          "name": "constraints",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true,
+      "attempt": 5
+    },
+    {
+      "id": "d-first-contact",
+      "tags": [
+        "description"
+      ],
+      "message": "Quiet science fiction about first contact with aliens",
+      "answer": "I didn’t find a close match for quiet first-contact science fiction. **The Day the Earth Stood Still (1951)** is the closest: a contemplative sci-fi story about an alien arriving on Earth with a warning.",
+      "first_token_s": 2.2658682399996906,
+      "total_s": 2.86,
+      "error": null,
+      "tools": [
+        {
+          "name": "findMoviesByDescription",
+          "arguments": {
+            "description": "Quiet, contemplative science fiction about first contact with aliens",
+            "genre": "Sci-Fi"
+          },
+          "result": [
+            {
+              "id": "573a1398f29313caabce9ab5",
+              "title": "The Quiet Earth",
+              "year": 1985,
+              "genres": [
+                "Drama",
+                "Mystery",
+                "Sci-Fi"
+              ],
+              "imdbRating": 6.9,
+              "plot": "A man named Zac Hobson awakens to find himself alone in the world. In a desperate attempt to search for others, he finds only two who have their own agenda."
+            },
+            {
+              "id": "573a13e0f29313caabdba44e",
+              "title": "The Quiet Hour",
+              "year": 2014,
+              "genres": [
+                "Drama",
+                "Sci-Fi",
+                "Thriller"
+              ],
+              "imdbRating": 6.6,
+              "plot": "In the aftermath of an alien invasion, a feisty teenage girl sets out to protect her farm from human scavengers who will stop at nothing in order to survive in a post-apocalyptic world."
+            },
+            {
+              "id": "573a1398f29313caabceac9c",
+              "title": "Alien Nation",
+              "year": 1988,
+              "genres": [
+                "Action",
+                "Crime",
+                "Sci-Fi"
+              ],
+              "imdbRating": 6.3,
+              "plot": "A few years from now, Earth will have the first contact with an alien civilization. These aliens, known as Newcomers, slowly begin to be integrated into human society after years of quarantine."
+            },
+            {
+              "id": "573a1394f29313caabcdeaa3",
+              "title": "The Day the Earth Stood Still",
+              "year": 1951,
+              "genres": [
+                "Sci-Fi"
+              ],
+              "imdbRating": 7.8,
+              "plot": "An alien lands and tells the people of Earth that they must live peacefully or be destroyed as a danger to other planets."
+            },
+            {
+              "id": "573a13bff29313caabd5f0f5",
+              "title": "Alien Trespass",
+              "year": 2009,
+              "genres": [
+                "Comedy",
+                "Horror",
+                "Sci-Fi"
+              ],
+              "imdbRating": 5.7,
+              "plot": "After crash landing near a desert town, an alien enlists the help of a local waitress to re-capture a monster that escaped from the wreckage of his space ship."
+            },
+            {
+              "id": "573a1396f29313caabce4f7c",
+              "title": "Dark Star",
+              "year": 1974,
+              "genres": [
+                "Comedy",
+                "Sci-Fi"
+              ],
+              "imdbRating": 6.5,
+              "plot": "In the far reaches of space, a small crew, 20 years into their solitary mission, find things beginning to go hilariously wrong."
+            },
+            {
+              "id": "573a1394f29313caabcdf43f",
+              "title": "Invaders from Mars",
+              "year": 1953,
+              "genres": [
+                "Horror",
+                "Sci-Fi"
+              ],
+              "imdbRating": 6.5,
+              "plot": "A young boy learns that space aliens are taking over the minds of earthlings."
+            },
+            {
+              "id": "573a1396f29313caabce4752",
+              "title": "Silent Running",
+              "year": 1972,
+              "genres": [
+                "Drama",
+                "Sci-Fi"
+              ],
+              "imdbRating": 6.7,
+              "plot": "In a future where all flora is extinct on Earth, an astronaut is given orders to destroy the last of Earth's botany, kept in a greenhouse aboard a spacecraft."
+            }
+          ],
+          "failed": false
+        }
+      ],
+      "model": "gpt-6-luna",
+      "tokens": {
+        "input": 2301,
+        "output": 83
+      },
+      "model_calls": 2,
+      "tool_calls": {
+        "findMoviesByDescription": 1
+      },
+      "tool_errors": 0,
+      "claims": [
+        "The Day the Earth Stood Still (1951)"
+      ],
+      "ungrounded": [],
+      "constraint_items": 1,
+      "constraint_satisfied": 1,
+      "checks": [
+        {
+          "name": "answered",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "grounding",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "count",
+          "passed": true,
+          "detail": "1 items, expected [1..]"
+        },
+        {
+          "name": "constraints",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true,
+      "attempt": 6
+    },
+    {
+      "id": "d-first-contact",
+      "tags": [
+        "description"
+      ],
+      "message": "Quiet science fiction about first contact with aliens",
+      "answer": "- **The Day the Earth Stood Still (1951)** — A measured first-contact story about an alien who arrives with a warning for humanity.",
+      "first_token_s": 1.9491735929987044,
+      "total_s": 2.24,
+      "error": null,
+      "tools": [
+        {
+          "name": "findMoviesByDescription",
+          "arguments": {
+            "description": "Quiet, contemplative science fiction about first contact with aliens",
+            "genre": "Sci-Fi"
+          },
+          "result": [
+            {
+              "id": "573a1398f29313caabce9ab5",
+              "title": "The Quiet Earth",
+              "year": 1985,
+              "genres": [
+                "Drama",
+                "Mystery",
+                "Sci-Fi"
+              ],
+              "imdbRating": 6.9,
+              "plot": "A man named Zac Hobson awakens to find himself alone in the world. In a desperate attempt to search for others, he finds only two who have their own agenda."
+            },
+            {
+              "id": "573a13e0f29313caabdba44e",
+              "title": "The Quiet Hour",
+              "year": 2014,
+              "genres": [
+                "Drama",
+                "Sci-Fi",
+                "Thriller"
+              ],
+              "imdbRating": 6.6,
+              "plot": "In the aftermath of an alien invasion, a feisty teenage girl sets out to protect her farm from human scavengers who will stop at nothing in order to survive in a post-apocalyptic world."
+            },
+            {
+              "id": "573a1398f29313caabceac9c",
+              "title": "Alien Nation",
+              "year": 1988,
+              "genres": [
+                "Action",
+                "Crime",
+                "Sci-Fi"
+              ],
+              "imdbRating": 6.3,
+              "plot": "A few years from now, Earth will have the first contact with an alien civilization. These aliens, known as Newcomers, slowly begin to be integrated into human society after years of quarantine."
+            },
+            {
+              "id": "573a1394f29313caabcdeaa3",
+              "title": "The Day the Earth Stood Still",
+              "year": 1951,
+              "genres": [
+                "Sci-Fi"
+              ],
+              "imdbRating": 7.8,
+              "plot": "An alien lands and tells the people of Earth that they must live peacefully or be destroyed as a danger to other planets."
+            },
+            {
+              "id": "573a13bff29313caabd5f0f5",
+              "title": "Alien Trespass",
+              "year": 2009,
+              "genres": [
+                "Comedy",
+                "Horror",
+                "Sci-Fi"
+              ],
+              "imdbRating": 5.7,
+              "plot": "After crash landing near a desert town, an alien enlists the help of a local waitress to re-capture a monster that escaped from the wreckage of his space ship."
+            },
+            {
+              "id": "573a1396f29313caabce4f7c",
+              "title": "Dark Star",
+              "year": 1974,
+              "genres": [
+                "Comedy",
+                "Sci-Fi"
+              ],
+              "imdbRating": 6.5,
+              "plot": "In the far reaches of space, a small crew, 20 years into their solitary mission, find things beginning to go hilariously wrong."
+            },
+            {
+              "id": "573a1394f29313caabcdf43f",
+              "title": "Invaders from Mars",
+              "year": 1953,
+              "genres": [
+                "Horror",
+                "Sci-Fi"
+              ],
+              "imdbRating": 6.5,
+              "plot": "A young boy learns that space aliens are taking over the minds of earthlings."
+            },
+            {
+              "id": "573a1396f29313caabce4752",
+              "title": "Silent Running",
+              "year": 1972,
+              "genres": [
+                "Drama",
+                "Sci-Fi"
+              ],
+              "imdbRating": 6.7,
+              "plot": "In a future where all flora is extinct on Earth, an astronaut is given orders to destroy the last of Earth's botany, kept in a greenhouse aboard a spacecraft."
+            }
+          ],
+          "failed": false
+        }
+      ],
+      "model": "gpt-6-luna",
+      "tokens": {
+        "input": 2301,
+        "output": 67
+      },
+      "model_calls": 2,
+      "tool_calls": {
+        "findMoviesByDescription": 1
+      },
+      "tool_errors": 0,
+      "claims": [
+        "The Day the Earth Stood Still (1951)"
+      ],
+      "ungrounded": [],
+      "constraint_items": 1,
+      "constraint_satisfied": 1,
+      "checks": [
+        {
+          "name": "answered",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "grounding",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "count",
+          "passed": true,
+          "detail": "1 items, expected [1..]"
+        },
+        {
+          "name": "constraints",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true,
+      "attempt": 7
+    },
+    {
+      "id": "d-first-contact",
+      "tags": [
+        "description"
+      ],
+      "message": "Quiet science fiction about first contact with aliens",
+      "answer": "I didn’t find a clear match for a quiet, contemplative first-contact story. **The Day the Earth Stood Still (1951)** is the closest: an alien arrives on Earth with a message urging humanity to live peacefully.",
+      "first_token_s": 2.364624061003269,
+      "total_s": 2.89,
+      "error": null,
+      "tools": [
+        {
+          "name": "findMoviesByDescription",
+          "arguments": {
+            "description": "Quiet, contemplative science fiction about first contact with aliens",
+            "genre": "Sci-Fi"
+          },
+          "result": [
+            {
+              "id": "573a1398f29313caabce9ab5",
+              "title": "The Quiet Earth",
+              "year": 1985,
+              "genres": [
+                "Drama",
+                "Mystery",
+                "Sci-Fi"
+              ],
+              "imdbRating": 6.9,
+              "plot": "A man named Zac Hobson awakens to find himself alone in the world. In a desperate attempt to search for others, he finds only two who have their own agenda."
+            },
+            {
+              "id": "573a13e0f29313caabdba44e",
+              "title": "The Quiet Hour",
+              "year": 2014,
+              "genres": [
+                "Drama",
+                "Sci-Fi",
+                "Thriller"
+              ],
+              "imdbRating": 6.6,
+              "plot": "In the aftermath of an alien invasion, a feisty teenage girl sets out to protect her farm from human scavengers who will stop at nothing in order to survive in a post-apocalyptic world."
+            },
+            {
+              "id": "573a1398f29313caabceac9c",
+              "title": "Alien Nation",
+              "year": 1988,
+              "genres": [
+                "Action",
+                "Crime",
+                "Sci-Fi"
+              ],
+              "imdbRating": 6.3,
+              "plot": "A few years from now, Earth will have the first contact with an alien civilization. These aliens, known as Newcomers, slowly begin to be integrated into human society after years of quarantine."
+            },
+            {
+              "id": "573a1394f29313caabcdeaa3",
+              "title": "The Day the Earth Stood Still",
+              "year": 1951,
+              "genres": [
+                "Sci-Fi"
+              ],
+              "imdbRating": 7.8,
+              "plot": "An alien lands and tells the people of Earth that they must live peacefully or be destroyed as a danger to other planets."
+            },
+            {
+              "id": "573a13bff29313caabd5f0f5",
+              "title": "Alien Trespass",
+              "year": 2009,
+              "genres": [
+                "Comedy",
+                "Horror",
+                "Sci-Fi"
+              ],
+              "imdbRating": 5.7,
+              "plot": "After crash landing near a desert town, an alien enlists the help of a local waitress to re-capture a monster that escaped from the wreckage of his space ship."
+            },
+            {
+              "id": "573a1396f29313caabce4f7c",
+              "title": "Dark Star",
+              "year": 1974,
+              "genres": [
+                "Comedy",
+                "Sci-Fi"
+              ],
+              "imdbRating": 6.5,
+              "plot": "In the far reaches of space, a small crew, 20 years into their solitary mission, find things beginning to go hilariously wrong."
+            },
+            {
+              "id": "573a1394f29313caabcdf43f",
+              "title": "Invaders from Mars",
+              "year": 1953,
+              "genres": [
+                "Horror",
+                "Sci-Fi"
+              ],
+              "imdbRating": 6.5,
+              "plot": "A young boy learns that space aliens are taking over the minds of earthlings."
+            },
+            {
+              "id": "573a1396f29313caabce4752",
+              "title": "Silent Running",
+              "year": 1972,
+              "genres": [
+                "Drama",
+                "Sci-Fi"
+              ],
+              "imdbRating": 6.7,
+              "plot": "In a future where all flora is extinct on Earth, an astronaut is given orders to destroy the last of Earth's botany, kept in a greenhouse aboard a spacecraft."
+            }
+          ],
+          "failed": false
+        }
+      ],
+      "model": "gpt-6-luna",
+      "tokens": {
+        "input": 2301,
+        "output": 84
+      },
+      "model_calls": 2,
+      "tool_calls": {
+        "findMoviesByDescription": 1
+      },
+      "tool_errors": 0,
+      "claims": [
+        "The Day the Earth Stood Still (1951)"
+      ],
+      "ungrounded": [],
+      "constraint_items": 1,
+      "constraint_satisfied": 1,
+      "checks": [
+        {
+          "name": "answered",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "grounding",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "count",
+          "passed": true,
+          "detail": "1 items, expected [1..]"
+        },
+        {
+          "name": "constraints",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true,
+      "attempt": 8
+    },
+    {
+      "id": "d-first-contact",
+      "tags": [
+        "description"
+      ],
+      "message": "Quiet science fiction about first contact with aliens",
+      "answer": "- **The Day the Earth Stood Still (1951)** — A restrained sci-fi classic about an alien arriving on Earth with a warning for humanity.  \n- **Alien Nation (1988)** — Explores first contact through the gradual integration of aliens into human society.",
+      "first_token_s": 2.523510929000622,
+      "total_s": 3.05,
+      "error": null,
+      "tools": [
+        {
+          "name": "findMoviesByDescription",
+          "arguments": {
+            "description": "Quiet, contemplative science fiction about first contact with aliens",
+            "genre": "Sci-Fi"
+          },
+          "result": [
+            {
+              "id": "573a1398f29313caabce9ab5",
+              "title": "The Quiet Earth",
+              "year": 1985,
+              "genres": [
+                "Drama",
+                "Mystery",
+                "Sci-Fi"
+              ],
+              "imdbRating": 6.9,
+              "plot": "A man named Zac Hobson awakens to find himself alone in the world. In a desperate attempt to search for others, he finds only two who have their own agenda."
+            },
+            {
+              "id": "573a13e0f29313caabdba44e",
+              "title": "The Quiet Hour",
+              "year": 2014,
+              "genres": [
+                "Drama",
+                "Sci-Fi",
+                "Thriller"
+              ],
+              "imdbRating": 6.6,
+              "plot": "In the aftermath of an alien invasion, a feisty teenage girl sets out to protect her farm from human scavengers who will stop at nothing in order to survive in a post-apocalyptic world."
+            },
+            {
+              "id": "573a1398f29313caabceac9c",
+              "title": "Alien Nation",
+              "year": 1988,
+              "genres": [
+                "Action",
+                "Crime",
+                "Sci-Fi"
+              ],
+              "imdbRating": 6.3,
+              "plot": "A few years from now, Earth will have the first contact with an alien civilization. These aliens, known as Newcomers, slowly begin to be integrated into human society after years of quarantine."
+            },
+            {
+              "id": "573a1394f29313caabcdeaa3",
+              "title": "The Day the Earth Stood Still",
+              "year": 1951,
+              "genres": [
+                "Sci-Fi"
+              ],
+              "imdbRating": 7.8,
+              "plot": "An alien lands and tells the people of Earth that they must live peacefully or be destroyed as a danger to other planets."
+            },
+            {
+              "id": "573a13bff29313caabd5f0f5",
+              "title": "Alien Trespass",
+              "year": 2009,
+              "genres": [
+                "Comedy",
+                "Horror",
+                "Sci-Fi"
+              ],
+              "imdbRating": 5.7,
+              "plot": "After crash landing near a desert town, an alien enlists the help of a local waitress to re-capture a monster that escaped from the wreckage of his space ship."
+            },
+            {
+              "id": "573a1396f29313caabce4f7c",
+              "title": "Dark Star",
+              "year": 1974,
+              "genres": [
+                "Comedy",
+                "Sci-Fi"
+              ],
+              "imdbRating": 6.5,
+              "plot": "In the far reaches of space, a small crew, 20 years into their solitary mission, find things beginning to go hilariously wrong."
+            },
+            {
+              "id": "573a1394f29313caabcdf43f",
+              "title": "Invaders from Mars",
+              "year": 1953,
+              "genres": [
+                "Horror",
+                "Sci-Fi"
+              ],
+              "imdbRating": 6.5,
+              "plot": "A young boy learns that space aliens are taking over the minds of earthlings."
+            },
+            {
+              "id": "573a1396f29313caabce4752",
+              "title": "Silent Running",
+              "year": 1972,
+              "genres": [
+                "Drama",
+                "Sci-Fi"
+              ],
+              "imdbRating": 6.7,
+              "plot": "In a future where all flora is extinct on Earth, an astronaut is given orders to destroy the last of Earth's botany, kept in a greenhouse aboard a spacecraft."
+            }
+          ],
+          "failed": false
+        }
+      ],
+      "model": "gpt-6-luna",
+      "tokens": {
+        "input": 2301,
+        "output": 92
+      },
+      "model_calls": 2,
+      "tool_calls": {
+        "findMoviesByDescription": 1
+      },
+      "tool_errors": 0,
+      "claims": [
+        "The Day the Earth Stood Still (1951)",
+        "Alien Nation (1988)"
+      ],
+      "ungrounded": [],
+      "constraint_items": 2,
+      "constraint_satisfied": 2,
+      "checks": [
+        {
+          "name": "answered",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "grounding",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "count",
+          "passed": true,
+          "detail": "2 items, expected [1..]"
+        },
+        {
+          "name": "constraints",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true,
+      "attempt": 9
+    },
+    {
+      "id": "d-first-contact",
+      "tags": [
+        "description"
+      ],
+      "message": "Quiet science fiction about first contact with aliens",
+      "answer": "- **The Day the Earth Stood Still (1951)** — A quietly reflective first-contact story in which an alien urges humanity to choose peace before it becomes a threat to other worlds.\n- **Alien Nation (1988)** — Explores first contact through the gradual integration of aliens into human society.",
+      "first_token_s": 2.902801221993286,
+      "total_s": 3.53,
+      "error": null,
+      "tools": [
+        {
+          "name": "findMoviesByDescription",
+          "arguments": {
+            "description": "Quiet science fiction about first contact with aliens",
+            "genre": "Sci-Fi"
+          },
+          "result": [
+            {
+              "id": "573a1398f29313caabceac9c",
+              "title": "Alien Nation",
+              "year": 1988,
+              "genres": [
+                "Action",
+                "Crime",
+                "Sci-Fi"
+              ],
+              "imdbRating": 6.3,
+              "plot": "A few years from now, Earth will have the first contact with an alien civilization. These aliens, known as Newcomers, slowly begin to be integrated into human society after years of quarantine."
+            },
+            {
+              "id": "573a13bff29313caabd5f0f5",
+              "title": "Alien Trespass",
+              "year": 2009,
+              "genres": [
+                "Comedy",
+                "Horror",
+                "Sci-Fi"
+              ],
+              "imdbRating": 5.7,
+              "plot": "After crash landing near a desert town, an alien enlists the help of a local waitress to re-capture a monster that escaped from the wreckage of his space ship."
+            },
+            {
+              "id": "573a1394f29313caabcdeaa3",
+              "title": "The Day the Earth Stood Still",
+              "year": 1951,
+              "genres": [
+                "Sci-Fi"
+              ],
+              "imdbRating": 7.8,
+              "plot": "An alien lands and tells the people of Earth that they must live peacefully or be destroyed as a danger to other planets."
+            },
+            {
+              "id": "573a1398f29313caabce973a",
+              "title": "Creature",
+              "year": 1985,
+              "genres": [
+                "Horror",
+                "Sci-Fi"
+              ],
+              "imdbRating": 4.2,
+              "plot": "A expedition to Titan uncovers an alien being, that goes on a rampage."
+            },
+            {
+              "id": "573a13c7f29313caabd742df",
+              "title": "Prometheus",
+              "year": 2012,
+              "genres": [
+                "Adventure",
+                "Mystery",
+                "Sci-Fi"
+              ],
+              "imdbRating": 7.0,
+              "plot": "Following clues to the origin of mankind a team journey across the universe and find a structure on a distant planet containing a monolithic statue of a humanoid head and stone cylinders of alien blood but they soon find they are not alone."
+            },
+            {
+              "id": "573a139af29313caabcefbcc",
+              "title": "The Arrival",
+              "year": 1996,
+              "genres": [
+                "Action",
+                "Sci-Fi",
+                "Thriller"
+              ],
+              "imdbRating": 6.3,
+              "plot": "Zane, an astronomer, discovers intelligent alien life. But the aliens are keeping a deadly secret, and will do anything to stop Zane from learning it."
+            },
+            {
+              "id": "573a1394f29313caabcdf43f",
+              "title": "Invaders from Mars",
+              "year": 1953,
+              "genres": [
+                "Horror",
+                "Sci-Fi"
+              ],
+              "imdbRating": 6.5,
+              "plot": "A young boy learns that space aliens are taking over the minds of earthlings."
+            },
+            {
+              "id": "573a1399f29313caabcee32e",
+              "title": "Alien Nation: Dark Horizon",
+              "year": 1994,
+              "genres": [
+                "Sci-Fi",
+                "Drama"
+              ],
+              "imdbRating": 6.6,
+              "plot": "Alien life form comes to Earth to rescue his enslaved race."
+            }
+          ],
+          "failed": false
+        }
+      ],
+      "model": "gpt-6-luna",
+      "tokens": {
+        "input": 2268,
+        "output": 95
+      },
+      "model_calls": 2,
+      "tool_calls": {
+        "findMoviesByDescription": 1
+      },
+      "tool_errors": 0,
+      "claims": [
+        "The Day the Earth Stood Still (1951)",
+        "Alien Nation (1988)"
+      ],
+      "ungrounded": [],
+      "constraint_items": 2,
+      "constraint_satisfied": 2,
+      "checks": [
+        {
+          "name": "answered",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "grounding",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "count",
+          "passed": true,
+          "detail": "2 items, expected [1..]"
+        },
+        {
+          "name": "constraints",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true,
+      "attempt": 10
+    },
+    {
+      "id": "d-first-contact",
+      "tags": [
+        "description"
+      ],
+      "message": "Quiet science fiction about first contact with aliens",
+      "answer": "- **The Day the Earth Stood Still (1951)** — A thoughtful, restrained first-contact story centered on an alien’s warning that humanity must learn to live peacefully.",
+      "first_token_s": 2.319180143000267,
+      "total_s": 2.73,
+      "error": null,
+      "tools": [
+        {
+          "name": "findMoviesByDescription",
+          "arguments": {
+            "description": "Quiet science fiction about first contact with aliens",
+            "genre": "Sci-Fi"
+          },
+          "result": [
+            {
+              "id": "573a1398f29313caabceac9c",
+              "title": "Alien Nation",
+              "year": 1988,
+              "genres": [
+                "Action",
+                "Crime",
+                "Sci-Fi"
+              ],
+              "imdbRating": 6.3,
+              "plot": "A few years from now, Earth will have the first contact with an alien civilization. These aliens, known as Newcomers, slowly begin to be integrated into human society after years of quarantine."
+            },
+            {
+              "id": "573a13bff29313caabd5f0f5",
+              "title": "Alien Trespass",
+              "year": 2009,
+              "genres": [
+                "Comedy",
+                "Horror",
+                "Sci-Fi"
+              ],
+              "imdbRating": 5.7,
+              "plot": "After crash landing near a desert town, an alien enlists the help of a local waitress to re-capture a monster that escaped from the wreckage of his space ship."
+            },
+            {
+              "id": "573a1394f29313caabcdeaa3",
+              "title": "The Day the Earth Stood Still",
+              "year": 1951,
+              "genres": [
+                "Sci-Fi"
+              ],
+              "imdbRating": 7.8,
+              "plot": "An alien lands and tells the people of Earth that they must live peacefully or be destroyed as a danger to other planets."
+            },
+            {
+              "id": "573a1398f29313caabce973a",
+              "title": "Creature",
+              "year": 1985,
+              "genres": [
+                "Horror",
+                "Sci-Fi"
+              ],
+              "imdbRating": 4.2,
+              "plot": "A expedition to Titan uncovers an alien being, that goes on a rampage."
+            },
+            {
+              "id": "573a13c7f29313caabd742df",
+              "title": "Prometheus",
+              "year": 2012,
+              "genres": [
+                "Adventure",
+                "Mystery",
+                "Sci-Fi"
+              ],
+              "imdbRating": 7.0,
+              "plot": "Following clues to the origin of mankind a team journey across the universe and find a structure on a distant planet containing a monolithic statue of a humanoid head and stone cylinders of alien blood but they soon find they are not alone."
+            },
+            {
+              "id": "573a139af29313caabcefbcc",
+              "title": "The Arrival",
+              "year": 1996,
+              "genres": [
+                "Action",
+                "Sci-Fi",
+                "Thriller"
+              ],
+              "imdbRating": 6.3,
+              "plot": "Zane, an astronomer, discovers intelligent alien life. But the aliens are keeping a deadly secret, and will do anything to stop Zane from learning it."
+            },
+            {
+              "id": "573a1394f29313caabcdf43f",
+              "title": "Invaders from Mars",
+              "year": 1953,
+              "genres": [
+                "Horror",
+                "Sci-Fi"
+              ],
+              "imdbRating": 6.5,
+              "plot": "A young boy learns that space aliens are taking over the minds of earthlings."
+            },
+            {
+              "id": "573a1399f29313caabcee32e",
+              "title": "Alien Nation: Dark Horizon",
+              "year": 1994,
+              "genres": [
+                "Sci-Fi",
+                "Drama"
+              ],
+              "imdbRating": 6.6,
+              "plot": "Alien life form comes to Earth to rescue his enslaved race."
+            }
+          ],
+          "failed": false
+        }
+      ],
+      "model": "gpt-6-luna",
+      "tokens": {
+        "input": 2268,
+        "output": 69
+      },
+      "model_calls": 2,
+      "tool_calls": {
+        "findMoviesByDescription": 1
+      },
+      "tool_errors": 0,
+      "claims": [
+        "The Day the Earth Stood Still (1951)"
+      ],
+      "ungrounded": [],
+      "constraint_items": 1,
+      "constraint_satisfied": 1,
+      "checks": [
+        {
+          "name": "answered",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "grounding",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "count",
+          "passed": true,
+          "detail": "1 items, expected [1..]"
+        },
+        {
+          "name": "constraints",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true,
+      "attempt": 11
+    },
+    {
+      "id": "d-first-contact",
+      "tags": [
+        "description"
+      ],
+      "message": "Quiet science fiction about first contact with aliens",
+      "answer": "I didn’t find a strong match for both “quiet” and “first contact.” **The Day the Earth Stood Still (1951)** is the closest: a thoughtful sci-fi story about an alien arriving on Earth with a warning.",
+      "first_token_s": 3.1386337129952153,
+      "total_s": 3.66,
+      "error": null,
+      "tools": [
+        {
+          "name": "findMoviesByDescription",
+          "arguments": {
+            "description": "Quiet, contemplative science fiction about first contact with aliens",
+            "genre": "Sci-Fi"
+          },
+          "result": [
+            {
+              "id": "573a1398f29313caabce9ab5",
+              "title": "The Quiet Earth",
+              "year": 1985,
+              "genres": [
+                "Drama",
+                "Mystery",
+                "Sci-Fi"
+              ],
+              "imdbRating": 6.9,
+              "plot": "A man named Zac Hobson awakens to find himself alone in the world. In a desperate attempt to search for others, he finds only two who have their own agenda."
+            },
+            {
+              "id": "573a13e0f29313caabdba44e",
+              "title": "The Quiet Hour",
+              "year": 2014,
+              "genres": [
+                "Drama",
+                "Sci-Fi",
+                "Thriller"
+              ],
+              "imdbRating": 6.6,
+              "plot": "In the aftermath of an alien invasion, a feisty teenage girl sets out to protect her farm from human scavengers who will stop at nothing in order to survive in a post-apocalyptic world."
+            },
+            {
+              "id": "573a1398f29313caabceac9c",
+              "title": "Alien Nation",
+              "year": 1988,
+              "genres": [
+                "Action",
+                "Crime",
+                "Sci-Fi"
+              ],
+              "imdbRating": 6.3,
+              "plot": "A few years from now, Earth will have the first contact with an alien civilization. These aliens, known as Newcomers, slowly begin to be integrated into human society after years of quarantine."
+            },
+            {
+              "id": "573a1394f29313caabcdeaa3",
+              "title": "The Day the Earth Stood Still",
+              "year": 1951,
+              "genres": [
+                "Sci-Fi"
+              ],
+              "imdbRating": 7.8,
+              "plot": "An alien lands and tells the people of Earth that they must live peacefully or be destroyed as a danger to other planets."
+            },
+            {
+              "id": "573a13bff29313caabd5f0f5",
+              "title": "Alien Trespass",
+              "year": 2009,
+              "genres": [
+                "Comedy",
+                "Horror",
+                "Sci-Fi"
+              ],
+              "imdbRating": 5.7,
+              "plot": "After crash landing near a desert town, an alien enlists the help of a local waitress to re-capture a monster that escaped from the wreckage of his space ship."
+            },
+            {
+              "id": "573a1396f29313caabce4f7c",
+              "title": "Dark Star",
+              "year": 1974,
+              "genres": [
+                "Comedy",
+                "Sci-Fi"
+              ],
+              "imdbRating": 6.5,
+              "plot": "In the far reaches of space, a small crew, 20 years into their solitary mission, find things beginning to go hilariously wrong."
+            },
+            {
+              "id": "573a1394f29313caabcdf43f",
+              "title": "Invaders from Mars",
+              "year": 1953,
+              "genres": [
+                "Horror",
+                "Sci-Fi"
+              ],
+              "imdbRating": 6.5,
+              "plot": "A young boy learns that space aliens are taking over the minds of earthlings."
+            },
+            {
+              "id": "573a1396f29313caabce4752",
+              "title": "Silent Running",
+              "year": 1972,
+              "genres": [
+                "Drama",
+                "Sci-Fi"
+              ],
+              "imdbRating": 6.7,
+              "plot": "In a future where all flora is extinct on Earth, an astronaut is given orders to destroy the last of Earth's botany, kept in a greenhouse aboard a spacecraft."
+            }
+          ],
+          "failed": false
+        }
+      ],
+      "model": "gpt-6-luna",
+      "tokens": {
+        "input": 2301,
+        "output": 85
+      },
+      "model_calls": 2,
+      "tool_calls": {
+        "findMoviesByDescription": 1
+      },
+      "tool_errors": 0,
+      "claims": [
+        "The Day the Earth Stood Still (1951)"
+      ],
+      "ungrounded": [],
+      "constraint_items": 1,
+      "constraint_satisfied": 1,
+      "checks": [
+        {
+          "name": "answered",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "grounding",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "count",
+          "passed": true,
+          "detail": "1 items, expected [1..]"
+        },
+        {
+          "name": "constraints",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "passed": true,
+      "attempt": 12
+    }
+  ]
+}

@@ -74,11 +74,12 @@ public class MovieTools {
                 : page.content().stream().map(MovieSummary::from).toList();
     }
 
+    // The examples must not be eval requests: an earlier one was d-first-contact's (ADR-0014).
     @Tool(description = "Semantic search: finds movies whose plot matches a description of what the "
-            + "user wants, such as 'a heist that goes wrong' or 'quiet science fiction about "
-            + "first contact'. Use it when the request describes a story, mood or theme rather than "
-            + "a title or keyword. Set genre when the user names one, so only movies of that genre "
-            + "come back.")
+            + "user wants, such as 'a heist that goes wrong' or 'a lonely robot learns to love'. "
+            + "Use it when the request describes a story, mood or theme rather than a title or "
+            + "keyword. Set genre whenever the request names or implies one ('science fiction' is "
+            + "Sci-Fi, 'scary' is Horror): without it, plot matches from any genre come back.")
     public List<MovieSummary> findMoviesByDescription(
             @ToolParam(description = "A description of the story, mood or theme") String description,
             @ToolParam(required = false, description = "Genre, for example Drama, Comedy or Sci-Fi") String genre) {

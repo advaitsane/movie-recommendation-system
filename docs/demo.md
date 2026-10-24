@@ -1,20 +1,25 @@
 # Demo
 
-A walk through the system in five acts: a new user's happy path, the system under load, a
-dependency failing, the AI assistant, and how the assistant is measured. It's also the script for the demo video. Every command
-runs from the repo root on a laptop; [running locally](running-locally.md) covers setup.
+The system in five acts, each with the command that runs it and the evidence it produces:
 
-On an 8 GB laptop with a 4 GB Docker VM, start from fresh data and restart once, so the first
-start's index rebuild doesn't leave the VM swapping (ADR-0010 Update 10):
+1. **A new user:** search, a review, and recommendations that turn personal once Kafka delivers
+   the event.
+2. **Under load:** k6 user journeys through the gateway, and the service that gives first.
+3. **Break it:** search-service killed under traffic; the gateway fails fast, recommendations
+   degrade instead of failing, and everything recovers on its own.
+4. **The assistant:** an LLM that answers by calling this system's own APIs, and works around a
+   slow one.
+5. **Measuring the assistant:** 34 evals against the real model, a CI gate, and a dashboard for
+   tokens and cost.
 
-```bash
-make clean && make up   # first start: about 10 minutes
-make down && make up    # about a minute
-```
-
-Open Grafana at http://localhost:3001 (no login needed) and Jaeger at http://localhost:16686.
+It all runs on an 8 GB laptop, so the latencies are laptop latencies. What the acts show is the
+behavior: breakers opening, fallbacks counted, recovery. [Running it yourself](#running-it-yourself)
+is at the end.
 
 ## Act 1: a new user, from cold start to personal
+
+A new user goes from the most popular movies to recommendations of their own, a few seconds
+after their first reviews.
 
 ```bash
 make demo
@@ -50,12 +55,15 @@ In Jaeger, a recommendation request shows where the time goes:
 ![Jaeger trace of a recommendation](images/jaeger-recommendation-fanout.png)
 
 The gateway calls recommendation-service, which checks its Redis cache, then asks search-service
-for movies similar to each of up to three liked movies, one after another. The three calls are
-sequential, so a slow search-service slows every recommendation three times over. That's a
-finding this trace makes obvious: ADR-0010 Update 9 records it, and the fix (one deadline for the
-search signal, or parallel calls) is next.
+for movies similar to each of up to three liked movies. In this trace, taken before the fix, the
+three calls run one after another, so a slow search-service slowed every recommendation three
+times over. The assistant's evals later failed on the same thing, and the calls now run in
+parallel under one 3 s deadline ([ADR-0010](adr/0010-load-test-timeout-budget-mismatch.md)).
 
 ## Act 2: under load
+
+k6 drives real user journeys through the gateway, and the dashboards show which service gives
+first.
 
 ```bash
 make load VUS=5   # about 3 minutes, 5 virtual users per journey
@@ -65,13 +73,16 @@ Watch **Movies → Service overview (RED)**:
 
 ![RED dashboard under load](images/grafana-red-under-load.jpg)
 
-Request rate, error share and p50/p95/p99 per service. On this laptop, search is the bottleneck:
+Request rate, error share and p50/p95/p99 per service. Search is the bottleneck:
 the vector index pages in and out of memory, its latency climbs, and the gateway's search breaker
 starts rejecting calls. The latency panels cap at 8s, the top histogram bucket, so the cold
-warm-up shows as a flat line there. These are laptop numbers: the design budget is 4s per
-request, and the local stack allows 10s (ADR-0010 Update 9).
+warm-up shows as a flat line there. The design budget is 4 s per request; the local stack
+allows 10 s, because vector search pages its index in from disk ([ADR-0010](adr/0010-load-test-timeout-budget-mismatch.md)).
 
 ## Act 3: break it
+
+Kill a dependency while traffic is running: the system degrades instead of failing, and
+recovers without help.
 
 ```bash
 make chaos CHAOS="02_service_kill.sh search-service 30"
@@ -93,23 +104,26 @@ hadn't caught. To show the gateway failing fast on a slow dependency rather than
 the latency experiment instead; it needs a delay longer than the local 10s budget:
 `make chaos CHAOS="03_network_fault.sh delay search-service 12000 30"`.
 
-## Act 4: the assistant (v1)
+## Act 4: the assistant
+
+An LLM answers movie questions by calling this system's own APIs as tools, and a slow tool
+costs it a step, not the answer.
 
 ```bash
 OPENAI_API_KEY=... make assistant   # adds assistant-service to the running stack
 make demo                            # now ends with one streamed answer
 ```
 
-The assistant answers over server-sent events. To answer, the model calls this system's own
-search and recommendation APIs as tools. In Jaeger, one turn shows every model call and tool call:
+The answer streams over server-sent events. In Jaeger, one turn shows every model call and tool
+call:
 
 ![Jaeger trace of an assistant turn](images/jaeger-assistant-tool-calls.png)
 
 Reading it top to bottom:
 1. The gateway checks the user's rate limit in Redis (`evalsha`).
 2. The model searches for The Matrix (`searchMovies`).
-3. It asks for similar movies (`findSimilarMovies`). On this laptop, search-service took 8.8s,
-   and the tool's 6s timeout fired: the red marks.
+3. It asks for similar movies (`findSimilarMovies`). search-service took 8.8 s here, and the
+   tool's 6 s timeout fired: the red marks.
 4. The model recovers by searching by description instead (`findMoviesByDescription`, a vector
    search, including search-service's call to the embedding API), then writes the answer.
 
@@ -120,6 +134,9 @@ dependency costs a step, not the whole answer.
 A demo shows one answer. Act 5 shows how all of them are measured.
 
 ## Act 5: measuring the assistant
+
+34 evals run the real model against the real catalog, on every pull request that touches the
+assistant, for about a cent and a half a run.
 
 The assistant's tests run against a stub of the OpenAI API, so they can't say whether an answer is
 any good. The evals send 34 real requests to the real model and check each recommended movie
@@ -156,7 +173,7 @@ PASS  x-code                          0.9s  tools=0
   passed. The tool description's example was almost word for word this scenario's request, so
   the test had been grading a request the model was shown. A neutral example and a rule to send
   the genre whenever a request implies one fixed it: 12 of 12, then 34 of 34 on this run
-  ([ADR-0014 Update 5](adr/0014-assistant-evals.md)).
+  ([ADR-0014](adr/0014-assistant-evals.md)).
 - **`x-code`** asks for a Python function. The model used to write one; a prompt rule stopped it,
   and this scenario keeps it stopped.
 
@@ -172,10 +189,22 @@ In Grafana, the **Assistant (LLM)** dashboard shows the run as it happens:
 - **Time to first token:** about 5 s at p50. Tool calls come first, so this is most of the wait.
 - **Tokens per answer:** about 3,400 in, 105 out. Every model call resends the system prompt,
   the history and the tool results, and an answer makes 2.4 calls on average.
-- **Cost:** tokens times list prices kept in Prometheus rules, about $0.0004 an answer on
-  gpt-6-luna.
+- **Cost:** tokens times list prices kept in Prometheus rules, about $0.0004 an answer.
 - **Failed tool calls:** the 1 here is recommendation-service stopped on purpose. Spring AI's own
-  metric records that call as a success ([ADR-0008 Update 3](adr/0008-observability-otel-prometheus-grafana.md)).
+  metric records that call as a success ([ADR-0008](adr/0008-observability-otel-prometheus-grafana.md)).
 
 Next: a grounding check inside the service, so an invented title never reaches the user, and an
 LLM judge for what the catalog can't check, whether a movie fits the request.
+
+## Running it yourself
+
+Every command runs from the repo root; [running locally](running-locally.md) covers setup. On an
+8 GB laptop with a 4 GB Docker VM, start from fresh data and restart once, so the first start's
+index rebuild doesn't leave the VM swapping ([ADR-0010](adr/0010-load-test-timeout-budget-mismatch.md)):
+
+```bash
+make clean && make up   # first start: about 10 minutes
+make down && make up    # about a minute
+```
+
+Grafana is at http://localhost:3001 (no login needed) and Jaeger at http://localhost:16686.

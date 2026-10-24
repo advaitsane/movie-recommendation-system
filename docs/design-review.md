@@ -151,7 +151,7 @@ What happens when each dependency goes down or slows down, from the chaos experi
 | recommendation-service's Mongo stopped | each call fails after 10 s until the breaker opens after 4–5 calls; before the fix, 15 s each and 30 s to report DOWN | Update 3 |
 | Redis stopped | recommendations still 200, about 2 s slower (read and write each time out at 1 s); the assistant's rate limit fails open | Update 3; [ADR-0007](adr/0007-api-gateway-routing-and-deferred-discovery.md) update |
 | Postgres stopped | user and review-service report DOWN in 3 s, the breaker opens after 5 calls, then a clean 503. **review-service's breaker first never opened**: it sat inside a `@Transactional` method, whose proxy takes a connection before the breaker runs. Outbox rows written during the outage were published after it | Updates 5–7 |
-| OpenAI slow or failing | only the assistant is affected. A failing tool goes back to the model as its result, and the model tries another way | [ADR-0013](adr/0013-assistant-service-spring-ai-openai.md); [demo act 4](demo.md#act-4-the-assistant-v1) |
+| OpenAI slow or failing | only the assistant is affected. A failing tool goes back to the model as its result, and the model tries another way | [ADR-0013](adr/0013-assistant-service-spring-ai-openai.md); [demo act 4](demo.md#act-4-the-assistant) |
 | Docker VM out of memory | before memory limits, the kernel killed whichever JVM it picked; now each service is sized from measurement | [ADR-0010 Updates 2, 3, 8](adr/0010-load-test-timeout-budget-mismatch.md) |
 | **Kafka stopped** | **not tested yet.** By design, reviews still commit and wait in the outbox (the `review.outbox.unpublished` gauge shows the backlog). Catalog writes also succeed, but their events are dropped, so search's copy and recommendation's metadata drift until a later event touches the same movie | design, from [ADR-0004](adr/0004-outbox-pattern-review-service.md) and [ADR-0006](adr/0006-user-service-auth-and-activity-events.md); next chaos experiment |
 
@@ -206,10 +206,11 @@ can answer. Load testing found this twice:
 2. **6 s covers one call, but there are three.** A recommendation asks for movies similar to each of
    up to three liked movies, one after another, so the worst case is 15 s. With a slow
    search-service, recommendations took 6.7–9.2 s and the gateway gave up again. The Jaeger trace
-   in [demo act 1](demo.md#act-1-a-new-user-from-cold-start-to-personal) shows the three calls in
-   sequence ([ADR-0010 Update 9](adr/0010-load-test-timeout-budget-mismatch.md)). **Not fixed
-   yet**: the fix is one deadline for the whole search signal, with the three calls made in
-   parallel.
+   in [demo act 1](demo.md#act-1-a-new-user-from-cold-start-to-personal), taken before the fix,
+   shows the three calls in sequence ([ADR-0010 Update 9](adr/0010-load-test-timeout-budget-mismatch.md)).
+   The assistant's evals later failed on the same sum, inside its 6 s tool timeout. **Fixed:** the
+   three calls now run in parallel under one 3 s deadline for the whole search signal, so the
+   worst case is 3 s, not 15 s ([ADR-0010 Update 11](adr/0010-load-test-timeout-budget-mismatch.md)).
 
 The assistant route has no breaker: a time limiter bounds the whole response, and a healthy stream
 runs past the 4 s limit. assistant-service reports failures inside the stream, and
@@ -239,7 +240,7 @@ reliably: breakers opening, fallbacks counted, recovery.
 | Part | Today | What breaks | The fix |
 |---|---|---|---|
 | mflix-mongo | mongod and mongot (Atlas Search) in one container, shared by catalog and search | already the bottleneck at 30 users: 100–270% CPU, search paths failing while catalog reads stayed healthy ([ADR-0010](adr/0010-load-test-timeout-budget-mismatch.md)) | split search's database from catalog's, then dedicated search nodes |
-| Recommendation fan-out | up to 3 sequential search calls per cache miss | latency is 3× search latency; at 10x, cache misses multiply the load on search | one deadline, parallel calls; at 100x, compute lists when a rating arrives rather than per request |
+| Recommendation fan-out | up to 3 search calls per cache miss, in parallel under one 3 s deadline | at 10x, every cache miss still sends 3 calls to search, so misses multiply its load | compute lists when a rating arrives rather than per request |
 | Gateway rate limit | one 50 req/s bucket, in memory, shared by every client | at 10x the gateway rejects ordinary traffic; each instance has its own bucket | per-client limits in Redis, as the assistant route already does |
 | Kafka | one broker; every topic 1 partition, replication factor 1 (checked live) | one consumer per group, and losing the broker loses events | partitions keyed by movie or user id, replication factor 3 |
 | Cold start and popularity | grouped in memory over every liked rating ([ADR-0005](adr/0005-recommendation-service-own-database-and-blend.md)) | each cold-start request reads all ratings; at 100x this dominates | a popularity counter kept up to date by the rating consumer |
@@ -251,23 +252,21 @@ reliably: breakers opening, fallbacks counted, recovery.
 
 In order:
 
-1. **One deadline for the search signal**, with the calls in parallel. It's the open budget finding
-   above, and it holds on any host.
-2. **Catalog events through an outbox,** like reviews. Fire-and-forget made sense while a missed
+1. **Catalog events through an outbox,** like reviews. Fire-and-forget made sense while a missed
    event healed on the next one, but nothing re-syncs the read models after a Kafka outage. Then
    run the Kafka chaos experiment.
-3. **Idempotency keys on writes,** so a client can retry after a timeout safely.
-4. **Delete events for reviews,** and a job that rebuilds profiles built without metadata.
-5. **Better collaborative peers.** Users are compared only by genre weights
+2. **Idempotency keys on writes,** so a client can retry after a timeout safely.
+3. **Delete events for reviews,** and a job that rebuilds profiles built without metadata.
+4. **Better collaborative peers.** Users are compared only by genre weights
    ([ADR-0005](adr/0005-recommendation-service-own-database-and-blend.md)), so two fans of
    different sci-fi films count as the same taste. Comparing the movies they rated would fix that.
-6. **One error format.** The gateway's own errors are JSON, but its 429 has an empty body
+5. **One error format.** The gateway's own errors are JSON, but its 429 has an empty body
    ([ADR-0007](adr/0007-api-gateway-routing-and-deferred-discovery.md)), and a pool error once leaked
    Hikari's message in a 500
    ([ADR-0011 Update 5](adr/0011-chaos-testing.md)). RFC 9457 `ProblemDetail` everywhere.
-7. **config-server: adopt it or retire it.** It runs, but no service reads from it
+6. **config-server: adopt it or retire it.** It runs, but no service reads from it
    ([ADR-0009](adr/0009-config-server.md)). On Kubernetes, ConfigMaps make it redundant.
-8. **Jackson 3 in every service** before Spring Boot 4.3 removes Jackson 2 support
+7. **Jackson 3 in every service** before Spring Boot 4.3 removes Jackson 2 support
    ([ADR-0013](adr/0013-assistant-service-spring-ai-openai.md)).
 
 ## Known limitations

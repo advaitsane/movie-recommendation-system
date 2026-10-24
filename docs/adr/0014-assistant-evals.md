@@ -276,3 +276,42 @@ rescored with `--recs` pointing at a closed port: the same three passes, with no
 `d-first-contact` sent `genre: Sci-Fi`, in this run and in all three runs of `--repeat 3` before
 the change (read from Jaeger then), so its failures in Update 3 look like the model sometimes
 leaving the genre out, not something it never does.
+
+## Update 5 (2026-10-24): `d-first-contact` fixed in the tool description, which held the test
+
+`d-first-contact` failed in three of the last five CI gates (#38, #42, #43), each time on *The Visit*
+(Documentary). Update 4's saved tool calls made the cause measurable. In 8 runs on `main`, the
+model sent `genre=Sci-Fi` in 6, and those 6 passed. In the other 2 it left the genre out, vector
+search returned *The Visit* among the sci-fi, and the model recommended it, with its genre in the
+tool result.
+
+**The tool description contained the test.** `findMoviesByDescription`'s description gave
+"quiet science fiction about first contact" as an example: almost word for word this scenario's
+request ("Quiet science fiction about first contact with aliens"). Every pass so far was on a
+request the tool had been shown. The example is now 'a lonely robot learns to love', and a code
+comment says examples must not come from the golden set.
+
+**Two changes:**
+- The tool description says to set the genre "whenever the request names or implies one
+  ('science fiction' is Sci-Fi, 'scary' is Horror)", and why: without it, plot matches from any
+  genre come back. Before, it said to set it "when the user names one", and the user wrote
+  "science fiction", not "Sci-Fi".
+- A prompt rule, as a second guard: when the user asks for a genre, only recommend movies whose
+  genres include it, even if a tool returned others.
+
+| Run (gpt-6-luna) | `d-first-contact` passed | Genre sent | Movies per answer |
+|---|---|---|---|
+| Before, 8 runs | 6/8 | 6/8 | 1 in every answer |
+| After, 12 runs | **12/12** | **12/12** | 1–2 |
+
+| Full gate (local) | Passed | Grounding | Constraints | Cost |
+|---|---|---|---|---|
+| After | **34/34** | 100% | 100% | $0.0166 |
+
+- The genre was sent in all 12 runs, so the prompt rule was never needed in them; it is untested
+  so far. A scenario that tests it needs a tool result with an off-genre movie, which the
+  scorers can't inject yet.
+- The gate's cost is about 10% above the last CI runs ($0.014–0.015). The longer tool
+  description is sent with every model call; one run doesn't separate that from variance.
+- Files: `results/2026-10-24T003208Z-…-first-contact-before.json`, `…003352Z-…-after.json`,
+  `…003704Z-…-gate.json`.

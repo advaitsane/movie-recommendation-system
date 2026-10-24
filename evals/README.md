@@ -12,6 +12,7 @@ against the model's own account of its answer. ADR-0014 explains the design.
 | CI, parallel seed lookups in recommendation-service (#39) | 34/34 | 100% | 100% | $0.014 |
 | CI, tool calls saved in the results (#41) | 33/34 | 100% | 98.2% | $0.014 |
 | CI, assistant dashboard (#42) | 32/34 | 100% | 98.3% | $0.015 |
+| Genre set whenever implied (`d-first-contact` 12/12), local | 34/34 | 100% | 100% | $0.017 |
 
 The first two rows were rescored by the current scorers (`--rescore`). The results are in [`results/`](results/).
 

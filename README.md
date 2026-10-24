@@ -68,9 +68,11 @@ before and after:
    4 each), taking the set from 31 to 33 of 34 passing and grounding from 98.9% to 100%
    ([ADR-0014](docs/adr/0014-assistant-evals.md)).
 2. **Vector search ranked a documentary first** for "quiet sci-fi about first contact", and the
-   model picked it. A genre pre-filter on `$vectorSearch` took constraints to 100%, but the model
-   doesn't always send the genre, so the scenario still fails some runs
-   ([ADR-0014 Updates 2–3](docs/adr/0014-assistant-evals.md)).
+   model picked it. A genre pre-filter on `$vectorSearch` fixed it when the model sent a genre,
+   which was 6 runs in 8. The tool's description turned out to quote the test request as its
+   example; with a neutral one, and the rule to set the genre whenever a request implies one,
+   the model sent it in 12 of 12 and the scenario passed 12 of 12
+   ([ADR-0014 Updates 2–5](docs/adr/0014-assistant-evals.md)).
 3. **A timeout budget that didn't nest, again.** recommendation-service looked up its three seed
    movies one after another, 3 s each, inside the assistant's 6 s tool timeout, and a scenario
    failed in 2 of 6 runs. One parallel 3 s deadline fixed it (5 of 5)
